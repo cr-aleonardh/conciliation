@@ -225,11 +225,11 @@ const TransactionRow = ({
         <div className="flex items-center gap-2">
           {isMatched && <CheckCircle2 className="w-3 h-3 text-match" />}
           <span className={cn("text-xs font-mono", isMatched ? "text-muted-foreground/50" : "text-muted-foreground")}>{data.date}</span>
-          <Badge variant="outline" className={cn("text-[10px] h-4 px-1", isMatched ? "border-muted-foreground/20 text-muted-foreground/40" : "border-muted-foreground/30 text-muted-foreground")}>
+          <Badge variant="outline" className={cn("text-[11px] h-5 px-1.5 font-mono font-semibold", isMatched ? "border-muted-foreground/20 text-muted-foreground/40" : "border-muted-foreground/30 text-muted-foreground")}>
             {data.reference}
           </Badge>
         </div>
-        <span className={cn("text-sm font-medium transition-colors", isMatched ? "text-muted-foreground line-through decoration-muted-foreground/30" : "text-foreground group-hover:text-primary")}>
+        <span className={cn("text-base font-medium transition-colors", isMatched ? "text-muted-foreground line-through decoration-muted-foreground/30" : "text-foreground group-hover:text-primary")}>
           {data.payee}
         </span>
       </div>
@@ -296,7 +296,7 @@ const RemittanceRow = ({
         <div className="flex items-center gap-2">
            {isMatched && <CheckCircle2 className="w-3 h-3 text-match" />}
            <span className={cn("text-xs font-mono", isMatched ? "text-muted-foreground/50" : "text-muted-foreground")}>{data.date}</span>
-           <Badge variant="outline" className={cn("text-[10px] h-4 px-1", isMatched ? "border-muted-foreground/20 text-muted-foreground/40" : "border-muted-foreground/30 text-muted-foreground")}>
+           <Badge variant="outline" className={cn("text-[11px] h-5 px-1.5 font-mono font-semibold", isMatched ? "border-muted-foreground/20 text-muted-foreground/40" : "border-muted-foreground/30 text-muted-foreground")}>
              {data.reference}
            </Badge>
            <span className={cn("text-[10px] font-mono", isMatched ? "text-muted-foreground/40" : "text-muted-foreground/70")}>{data.orderNumber}</span>
@@ -304,7 +304,7 @@ const RemittanceRow = ({
 
         {/* Bottom Line: Name */}
         <div>
-           <span className={cn("text-sm font-medium transition-colors", isMatched ? "text-muted-foreground line-through decoration-muted-foreground/30" : "text-foreground group-hover:text-secondary")}>
+           <span className={cn("text-base font-medium transition-colors", isMatched ? "text-muted-foreground line-through decoration-muted-foreground/30" : "text-foreground group-hover:text-secondary")}>
              {data.client}
            </span>
         </div>
