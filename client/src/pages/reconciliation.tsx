@@ -187,7 +187,7 @@ const AmountDisplay = ({ amount, type, dimmed }: { amount: number, type: 'bank' 
     "font-mono font-medium tracking-tight transition-colors",
     dimmed ? "text-muted-foreground" : (type === 'bank' ? "text-bank" : "text-remit")
   )}>
-    ${amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+    {amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
   </span>
 );
 
@@ -765,7 +765,7 @@ export default function ReconciliationPage() {
           {/* Panel Footer / Summary */}
           <div className="h-10 border-t border-border/40 flex items-center px-4 justify-between bg-muted/10 text-xs text-muted-foreground">
              <span>{filteredBank.length} items</span>
-             <span className="font-mono">Total: ${filteredBank.reduce((acc, t) => acc + t.amount, 0).toLocaleString()}</span>
+             <span className="font-mono">Total: {filteredBank.reduce((acc, t) => acc + t.amount, 0).toLocaleString()}</span>
           </div>
         </div>
 
@@ -828,7 +828,7 @@ export default function ReconciliationPage() {
           {/* Panel Footer / Summary */}
            <div className="h-10 border-t border-border/40 flex items-center px-4 justify-between bg-muted/10 text-xs text-muted-foreground">
              <span>{filteredRemit.length} items</span>
-             <span className="font-mono">Total: ${filteredRemit.reduce((acc, r) => acc + r.amount, 0).toLocaleString()}</span>
+             <span className="font-mono">Total: {filteredRemit.reduce((acc, r) => acc + r.amount, 0).toLocaleString()}</span>
           </div>
         </div>
         </div>
