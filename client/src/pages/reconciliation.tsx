@@ -111,7 +111,7 @@ const RemittanceRow = ({
         <div className="absolute -left-1 top-1/2 -translate-y-1/2 w-1 h-8 bg-remit rounded-r-full shadow-[0_0_10px_var(--color-remit)]" />
       )}
 
-      <div className="flex flex-col gap-1 w-full">
+      <div className="flex flex-col gap-1">
         {/* Top Line: Date | Reference | Order Number */}
         <div className="flex items-center gap-2">
            {isMatched && <CheckCircle2 className="w-3 h-3 text-match" />}
@@ -122,12 +122,11 @@ const RemittanceRow = ({
            <span className={cn("text-[10px] font-mono", isMatched ? "text-muted-foreground/40" : "text-muted-foreground/70")}>{data.orderNumber}</span>
         </div>
 
-        {/* Bottom Line: Name & Amount */}
-        <div className="flex items-center justify-between w-full">
+        {/* Bottom Line: Name */}
+        <div>
            <span className={cn("text-sm font-medium transition-colors", isMatched ? "text-muted-foreground line-through decoration-muted-foreground/30" : "text-foreground group-hover:text-secondary")}>
              {data.client}
            </span>
-           <AmountDisplay amount={data.amount} type="remit" dimmed={isMatched} />
         </div>
 
         {/* Visual Expansion for Many-to-One */}
@@ -143,6 +142,11 @@ const RemittanceRow = ({
              </div>
           </motion.div>
         )}
+      </div>
+
+      {/* Amount Display - Vertically Centered */}
+      <div className="text-right pl-4 shrink-0">
+         <AmountDisplay amount={data.amount} type="remit" dimmed={isMatched} />
       </div>
     </motion.div>
   );
