@@ -1,19 +1,21 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, ArrowRightLeft, X, RefreshCw, Layers, Keyboard } from 'lucide-react';
+import { Search, ArrowRightLeft, X, RefreshCw, Layers, Keyboard, Eye, EyeOff, CheckCircle2 } from 'lucide-react';
 import { generateMockData, BankTransaction, Remittance } from '../lib/mockData';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 // --- Components ---
 
-const AmountDisplay = ({ amount, type }: { amount: number, type: 'bank' | 'remit' }) => (
+const AmountDisplay = ({ amount, type, dimmed }: { amount: number, type: 'bank' | 'remit', dimmed?: boolean }) => (
   <span className={cn(
-    "font-mono font-medium tracking-tight",
-    type === 'bank' ? "text-bank" : "text-remit"
+    "font-mono font-medium tracking-tight transition-colors",
+    dimmed ? "text-muted-foreground" : (type === 'bank' ? "text-bank" : "text-remit")
   )}>
     ${amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
   </span>
@@ -27,41 +29,46 @@ const TransactionRow = ({
   data: BankTransaction, 
   isSelected: boolean, 
   onClick: () => void 
-}) => (
-  <motion.div
-    layoutId={`bank-${data.id}`}
-    initial={{ opacity: 0, x: -20 }}
-    animate={{ opacity: 1, x: 0 }}
-    exit={{ opacity: 0, x: -50, height: 0, marginBottom: 0 }}
-    onClick={onClick}
-    className={cn(
-      "group relative flex items-center justify-between p-3 mb-2 rounded-md border cursor-pointer transition-all duration-200 select-none",
-      "hover:bg-muted/50",
-      isSelected 
-        ? "bg-bank/10 border-bank shadow-[0_0_15px_-3px_var(--color-bank)] z-10 translate-x-2" 
-        : "bg-card border-border/40 hover:border-border"
-    )}
-  >
-    <div className="flex flex-col gap-1">
-      <div className="flex items-center gap-2">
-        <span className="text-xs font-mono text-muted-foreground">{data.date}</span>
-        <Badge variant="outline" className="text-[10px] h-4 px-1 border-muted-foreground/30 text-muted-foreground">
-          {data.reference}
-        </Badge>
+}) => {
+  const isMatched = data.status === 'matched';
+  
+  return (
+    <motion.div
+      layoutId={`bank-${data.id}`}
+      initial={{ opacity: 0, x: -20 }}
+      animate={{ opacity: isMatched ? 0.5 : 1, x: 0 }}
+      exit={{ opacity: 0, x: -50, height: 0, marginBottom: 0 }}
+      onClick={!isMatched ? onClick : undefined}
+      className={cn(
+        "group relative flex items-center justify-between p-3 mb-2 rounded-md border transition-all duration-200 select-none",
+        isMatched 
+          ? "bg-muted/20 border-transparent cursor-default" 
+          : "cursor-pointer hover:bg-muted/50 bg-card border-border/40 hover:border-border",
+        isSelected && !isMatched && "bg-bank/10 border-bank shadow-[0_0_15px_-3px_var(--color-bank)] z-10 translate-x-2"
+      )}
+    >
+      <div className="flex flex-col gap-1">
+        <div className="flex items-center gap-2">
+          {isMatched && <CheckCircle2 className="w-3 h-3 text-match" />}
+          <span className={cn("text-xs font-mono", isMatched ? "text-muted-foreground/50" : "text-muted-foreground")}>{data.date}</span>
+          <Badge variant="outline" className={cn("text-[10px] h-4 px-1", isMatched ? "border-muted-foreground/20 text-muted-foreground/40" : "border-muted-foreground/30 text-muted-foreground")}>
+            {data.reference}
+          </Badge>
+        </div>
+        <span className={cn("text-sm font-medium transition-colors", isMatched ? "text-muted-foreground line-through decoration-muted-foreground/30" : "text-foreground group-hover:text-primary")}>
+          {data.payee}
+        </span>
       </div>
-      <span className="text-sm font-medium text-foreground group-hover:text-primary transition-colors">
-        {data.payee}
-      </span>
-    </div>
-    <div className="text-right">
-      <AmountDisplay amount={data.amount} type="bank" />
-    </div>
-    
-    {isSelected && (
-      <div className="absolute -right-1 top-1/2 -translate-y-1/2 w-1 h-8 bg-bank rounded-l-full shadow-[0_0_10px_var(--color-bank)]" />
-    )}
-  </motion.div>
-);
+      <div className="text-right">
+        <AmountDisplay amount={data.amount} type="bank" dimmed={isMatched} />
+      </div>
+      
+      {isSelected && !isMatched && (
+        <div className="absolute -right-1 top-1/2 -translate-y-1/2 w-1 h-8 bg-bank rounded-l-full shadow-[0_0_10px_var(--color-bank)]" />
+      )}
+    </motion.div>
+  );
+};
 
 const RemittanceRow = ({ 
   data, 
@@ -75,64 +82,69 @@ const RemittanceRow = ({
   onClick: () => void,
   isMultiMatchTarget: boolean,
   matchCount: number
-}) => (
-  <motion.div
-    layoutId={`remit-${data.id}`}
-    initial={{ opacity: 0, x: 20 }}
-    animate={{ 
-      opacity: 1, 
-      x: 0, 
-      scale: isMultiMatchTarget ? 1.02 : 1,
-      minHeight: isMultiMatchTarget ? "80px" : "auto", // Expand height visually
-      borderColor: isMultiMatchTarget ? "var(--color-match)" : undefined
-    }}
-    exit={{ opacity: 0, x: 50, height: 0, marginBottom: 0 }}
-    onClick={onClick}
-    className={cn(
-      "group relative flex items-center justify-between p-3 mb-2 rounded-md border cursor-pointer transition-all duration-200 select-none",
-      "hover:bg-muted/50",
-      isSelected 
-        ? "bg-remit/10 border-remit shadow-[0_0_15px_-3px_var(--color-remit)] z-10 -translate-x-2" 
-        : "bg-card border-border/40 hover:border-border",
-      isMultiMatchTarget && "bg-match/5 border-match shadow-[0_0_20px_-5px_var(--color-match)]"
-    )}
-  >
-    {isSelected && (
-      <div className="absolute -left-1 top-1/2 -translate-y-1/2 w-1 h-8 bg-remit rounded-r-full shadow-[0_0_10px_var(--color-remit)]" />
-    )}
+}) => {
+  const isMatched = data.status === 'matched';
 
-    <div className="flex flex-col gap-1 w-full">
-      <div className="flex items-center justify-between w-full">
-         <div className="flex items-center gap-2">
-            <span className="text-xs font-medium text-foreground group-hover:text-secondary transition-colors">
-              {data.client}
-            </span>
-         </div>
-         <AmountDisplay amount={data.amount} type="remit" />
-      </div>
-
-      <div className="flex items-center gap-2 text-xs text-muted-foreground font-mono">
-        <span>{data.reference}</span>
-        <span className="w-1 h-1 rounded-full bg-muted-foreground/30" />
-        <span>{data.orderNumber}</span>
-      </div>
-
-      {/* Visual Expansion for Many-to-One */}
-      {isMultiMatchTarget && (
-        <motion.div 
-           initial={{ opacity: 0, height: 0 }}
-           animate={{ opacity: 1, height: 'auto' }}
-           className="mt-2 pt-2 border-t border-match/20 w-full"
-        >
-           <div className="flex items-center gap-2 text-xs text-match font-medium">
-             <Layers className="w-3 h-3" />
-             <span>Grouping {matchCount} bank transactions</span>
-           </div>
-        </motion.div>
+  return (
+    <motion.div
+      layoutId={`remit-${data.id}`}
+      initial={{ opacity: 0, x: 20 }}
+      animate={{ 
+        opacity: isMatched ? 0.5 : 1, 
+        x: 0, 
+        scale: isMultiMatchTarget ? 1.02 : 1,
+        minHeight: isMultiMatchTarget ? "80px" : "auto", // Expand height visually
+        borderColor: isMultiMatchTarget ? "var(--color-match)" : undefined
+      }}
+      exit={{ opacity: 0, x: 50, height: 0, marginBottom: 0 }}
+      onClick={!isMatched ? onClick : undefined}
+      className={cn(
+        "group relative flex items-center justify-between p-3 mb-2 rounded-md border transition-all duration-200 select-none",
+        isMatched 
+          ? "bg-muted/20 border-transparent cursor-default" 
+          : "cursor-pointer hover:bg-muted/50 bg-card border-border/40 hover:border-border",
+        isSelected && !isMatched && "bg-remit/10 border-remit shadow-[0_0_15px_-3px_var(--color-remit)] z-10 -translate-x-2",
+        isMultiMatchTarget && "bg-match/5 border-match shadow-[0_0_20px_-5px_var(--color-match)]"
       )}
-    </div>
-  </motion.div>
-);
+    >
+      {isSelected && !isMatched && (
+        <div className="absolute -left-1 top-1/2 -translate-y-1/2 w-1 h-8 bg-remit rounded-r-full shadow-[0_0_10px_var(--color-remit)]" />
+      )}
+
+      <div className="flex flex-col gap-1 w-full">
+        <div className="flex items-center justify-between w-full">
+           <div className="flex items-center gap-2">
+              {isMatched && <CheckCircle2 className="w-3 h-3 text-match" />}
+              <span className={cn("text-xs font-medium transition-colors", isMatched ? "text-muted-foreground line-through decoration-muted-foreground/30" : "text-foreground group-hover:text-secondary")}>
+                {data.client}
+              </span>
+           </div>
+           <AmountDisplay amount={data.amount} type="remit" dimmed={isMatched} />
+        </div>
+
+        <div className={cn("flex items-center gap-2 text-xs font-mono", isMatched ? "text-muted-foreground/40" : "text-muted-foreground")}>
+          <span>{data.reference}</span>
+          <span className="w-1 h-1 rounded-full bg-current opacity-30" />
+          <span>{data.orderNumber}</span>
+        </div>
+
+        {/* Visual Expansion for Many-to-One */}
+        {isMultiMatchTarget && (
+          <motion.div 
+             initial={{ opacity: 0, height: 0 }}
+             animate={{ opacity: 1, height: 'auto' }}
+             className="mt-2 pt-2 border-t border-match/20 w-full"
+          >
+             <div className="flex items-center gap-2 text-xs text-match font-medium">
+               <Layers className="w-3 h-3" />
+               <span>Grouping {matchCount} bank transactions</span>
+             </div>
+          </motion.div>
+        )}
+      </div>
+    </motion.div>
+  );
+};
 
 // --- Main Page ---
 
@@ -145,6 +157,8 @@ export default function ReconciliationPage() {
   
   const [bankFilter, setBankFilter] = useState('');
   const [remitFilter, setRemitFilter] = useState('');
+  
+  const [showMatched, setShowMatched] = useState(false);
 
   // Initial Data Load
   useEffect(() => {
@@ -156,21 +170,30 @@ export default function ReconciliationPage() {
   // Filtering
   const filteredBank = useMemo(() => 
     bankTransactions.filter(t => 
-      t.status === 'unmatched' && 
+      (showMatched || t.status === 'unmatched') && 
       (t.payee.toLowerCase().includes(bankFilter.toLowerCase()) || 
        t.amount.toString().includes(bankFilter) ||
        t.reference.includes(bankFilter))
-    ), [bankTransactions, bankFilter]
+    ).sort((a, b) => {
+       // Always put unmatched first
+       if (a.status !== b.status) return a.status === 'unmatched' ? -1 : 1;
+       return 0; 
+    }), [bankTransactions, bankFilter, showMatched]
   );
 
   const filteredRemit = useMemo(() => 
     remittances.filter(r => 
-      r.status === 'unmatched' &&
+      (showMatched || r.status === 'unmatched') &&
       (r.client.toLowerCase().includes(remitFilter.toLowerCase()) || 
        r.amount.toString().includes(remitFilter) ||
        r.reference.toLowerCase().includes(remitFilter.toLowerCase()))
-    ), [remittances, remitFilter]
+    ).sort((a, b) => {
+       // Always put unmatched first
+       if (a.status !== b.status) return a.status === 'unmatched' ? -1 : 1;
+       return 0;
+    }), [remittances, remitFilter, showMatched]
   );
+
 
   // Selection Handling
   const toggleBankSelection = (id: string) => {
@@ -253,6 +276,20 @@ export default function ReconciliationPage() {
         </div>
 
         <div className="flex items-center gap-4">
+             {/* Show Matched Toggle */}
+             <div className="flex items-center gap-2 border-r border-border/50 pr-4 mr-2">
+                <Switch 
+                  id="show-matched" 
+                  checked={showMatched} 
+                  onCheckedChange={setShowMatched}
+                  className="data-[state=checked]:bg-primary"
+                />
+                <Label htmlFor="show-matched" className="text-xs font-medium cursor-pointer text-muted-foreground flex items-center gap-1.5">
+                   {showMatched ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
+                   Matched
+                </Label>
+             </div>
+
              {/* Match Action Center - Only visible when selections exist */}
              <AnimatePresence>
               {(selectedBankIds.size > 0 || selectedRemitIds.size > 0) && (
