@@ -59,6 +59,9 @@ const AmountDisplay = ({ amount, type, dimmed }: { amount: number, type: 'bank' 
   </span>
 );
 
+const ROW_HEIGHT = 72; // Fixed height in px
+const GAP = 8; // margin-bottom
+
 const TransactionRow = ({ 
   data, 
   isSelected, 
@@ -77,8 +80,9 @@ const TransactionRow = ({
       animate={{ opacity: isMatched ? 0.5 : 1, x: 0 }}
       exit={{ opacity: 0, x: -50, height: 0, marginBottom: 0 }}
       onClick={!isMatched ? onClick : undefined}
+      style={{ height: `${ROW_HEIGHT}px`, marginBottom: `${GAP}px` }}
       className={cn(
-        "group relative flex items-center justify-between p-3 mb-2 rounded-md border transition-all duration-200 select-none",
+        "group relative flex items-center justify-between p-3 rounded-md border transition-all duration-200 select-none",
         isMatched 
           ? "bg-muted/20 border-transparent cursor-default" 
           : "cursor-pointer hover:bg-muted/50 bg-card border-border/40 hover:border-border",
@@ -122,6 +126,8 @@ const RemittanceRow = ({
   matchCount: number
 }) => {
   const isMatched = data.status === 'matched';
+  const matchedCount = data.matchedBankIds?.length || 1;
+  const height = isMatched ? (matchedCount * ROW_HEIGHT) + ((matchedCount - 1) * GAP) : ROW_HEIGHT;
 
   return (
     <motion.div
@@ -131,13 +137,17 @@ const RemittanceRow = ({
         opacity: isMatched ? 0.5 : 1, 
         x: 0, 
         scale: isMultiMatchTarget ? 1.02 : 1,
-        minHeight: isMultiMatchTarget ? "80px" : "auto", // Expand height visually
         borderColor: isMultiMatchTarget ? "var(--color-match)" : undefined
       }}
       exit={{ opacity: 0, x: 50, height: 0, marginBottom: 0 }}
       onClick={!isMatched ? onClick : undefined}
+      style={{ 
+         height: isMultiMatchTarget ? 'auto' : `${height}px`,
+         minHeight: isMultiMatchTarget ? '80px' : undefined,
+         marginBottom: `${GAP}px`
+      }}
       className={cn(
-        "group relative flex items-center justify-between p-3 mb-2 rounded-md border transition-all duration-200 select-none",
+        "group relative flex items-center justify-between p-3 rounded-md border transition-all duration-200 select-none",
         isMatched 
           ? "bg-muted/20 border-transparent cursor-default" 
           : "cursor-pointer hover:bg-muted/50 bg-card border-border/40 hover:border-border",
@@ -304,7 +314,11 @@ export default function ReconciliationPage() {
       selectedBankIds.has(t.id) ? { ...t, status: 'matched' } : t
     ));
     setRemittances(prev => prev.map(r => 
-      selectedRemitIds.has(r.id) ? { ...r, status: 'matched' } : r
+      selectedRemitIds.has(r.id) ? { 
+        ...r, 
+        status: 'matched',
+        matchedBankIds: Array.from(selectedBankIds)
+      } : r
     ));
 
     // Clear selection

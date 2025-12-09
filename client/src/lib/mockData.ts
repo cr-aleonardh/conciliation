@@ -15,6 +15,7 @@ export interface Remittance {
   orderNumber: string;
   amount: number;
   status: 'unmatched' | 'matched';
+  matchedBankIds?: string[];
 }
 
 export const generateMockData = () => {
