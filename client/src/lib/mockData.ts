@@ -9,6 +9,7 @@ export interface BankTransaction {
 
 export interface Remittance {
   id: string;
+  date: string;
   reference: string;
   client: string;
   orderNumber: string;
@@ -48,6 +49,7 @@ export const generateMockData = () => {
 
     remittances.push({
       id: `rm-${i}`,
+      date: new Date(2024, 0, Math.floor(Math.random() * 30) + 1).toISOString().split('T')[0],
       reference: `INV-${Math.floor(Math.random() * 10000)}`,
       client: clients[Math.floor(Math.random() * clients.length)],
       orderNumber: `ORD-${Math.floor(Math.random() * 99999)}`,
