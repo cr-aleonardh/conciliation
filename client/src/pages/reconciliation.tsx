@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, ArrowRightLeft, X, RefreshCw, Layers, Keyboard, Eye, EyeOff, CheckCircle2, ArrowUpDown, ArrowUp, ArrowDown, Sparkles, Check, ThumbsUp, ThumbsDown, XCircle } from 'lucide-react';
+import { Search, ArrowRightLeft, X, RefreshCw, Layers, Keyboard, Eye, EyeOff, CheckCircle2, ArrowUpDown, ArrowUp, ArrowDown, Sparkles, Check, ThumbsUp, ThumbsDown, XCircle, History } from 'lucide-react';
 import { generateMockData, BankTransaction, Remittance } from '../lib/mockData';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -119,10 +119,12 @@ const SuggestedMatchRow = ({
 
 const MatchedGroupRow = ({ 
   remittance, 
-  bankTransactions 
+  bankTransactions,
+  index
 }: { 
   remittance: Remittance, 
-  bankTransactions: BankTransaction[] 
+  bankTransactions: BankTransaction[],
+  index: number
 }) => {
   return (
     <div className="flex border-b border-border/40 hover:bg-muted/20 transition-colors group">

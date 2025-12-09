@@ -4,7 +4,7 @@ export interface BankTransaction {
   payee: string;
   reference: string;
   amount: number;
-  status: 'unmatched' | 'matched';
+  status: 'unmatched' | 'matched' | 'suggested';
 }
 
 export interface Remittance {
