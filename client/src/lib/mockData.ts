@@ -14,8 +14,9 @@ export interface Remittance {
   client: string;
   orderNumber: string;
   amount: number;
-  status: 'unmatched' | 'matched';
+  status: 'unmatched' | 'matched' | 'suggested';
   matchedBankIds?: string[];
+  suggestedMatchId?: string; // For 1-to-1 suggestions
 }
 
 export const generateMockData = () => {
@@ -57,6 +58,38 @@ export const generateMockData = () => {
       amount: amount,
       status: 'unmatched'
     });
+  }
+
+  // Generate some matched data
+  // ... existing matched logic if any ...
+
+  // Generate Suggestions (1-to-1)
+  for (let i = 0; i < 3; i++) {
+     const amount = Math.floor(Math.random() * 5000) + 1000;
+     const idSuffix = `_sug_${i}`;
+     
+     const bankTx: BankTransaction = {
+       id: `bank${idSuffix}`,
+       date: '2023-12-05',
+       amount,
+       payee: `Suggested Client ${i}`,
+       reference: `REF-SUG-${i}`,
+       status: 'suggested'
+     };
+
+     const remit: Remittance = {
+       id: `remit${idSuffix}`,
+       date: '2023-12-05',
+       amount,
+       client: `Suggested Client ${i}`,
+       reference: `REF-SUG-${i}`,
+       orderNumber: `ORD-${i}`,
+       status: 'suggested',
+       suggestedMatchId: bankTx.id
+     };
+
+     bankTransactions.push(bankTx);
+     remittances.push(remit);
   }
 
   return { bankTransactions, remittances };

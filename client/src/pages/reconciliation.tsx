@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, ArrowRightLeft, X, RefreshCw, Layers, Keyboard, Eye, EyeOff, CheckCircle2, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { Search, ArrowRightLeft, X, RefreshCw, Layers, Keyboard, Eye, EyeOff, CheckCircle2, ArrowUpDown, ArrowUp, ArrowDown, Sparkles, Check, ThumbsUp, ThumbsDown, XCircle } from 'lucide-react';
 import { generateMockData, BankTransaction, Remittance } from '../lib/mockData';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -49,6 +49,73 @@ const SortButton = ({
 );
 
 // --- Components ---
+
+const SuggestedMatchRow = ({ 
+  remittance, 
+  bankTransaction,
+  onApprove,
+  onReject
+}: { 
+  remittance: Remittance, 
+  bankTransaction: BankTransaction,
+  onApprove: () => void,
+  onReject: () => void
+}) => {
+  return (
+    <motion.div 
+      layout
+      initial={{ opacity: 0, y: -20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+      className="flex items-stretch border border-amber-500/30 bg-amber-500/5 rounded-lg mb-2 overflow-hidden relative group"
+    >
+      {/* Central Connector Line */}
+      <div className="absolute left-1/2 top-0 bottom-0 w-[1px] bg-amber-500/20 -translate-x-1/2 z-0">
+         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-background border border-amber-500/50 flex items-center justify-center z-10 shadow-sm">
+            <Sparkles className="w-3 h-3 text-amber-500" />
+         </div>
+      </div>
+
+      {/* Left: Bank Transaction */}
+      <div className="flex-1 p-3 pr-8 flex items-center justify-between">
+         <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-2">
+               <span className="text-xs font-mono text-muted-foreground">{bankTransaction.date}</span>
+               <Badge variant="outline" className="text-[10px] h-4 px-1 border-amber-500/20 text-amber-700 dark:text-amber-400">
+                 {bankTransaction.reference}
+               </Badge>
+            </div>
+            <span className="text-sm font-medium opacity-90">{bankTransaction.payee}</span>
+         </div>
+         <AmountDisplay amount={bankTransaction.amount} type="bank" />
+      </div>
+
+      {/* Right: Remittance */}
+      <div className="flex-1 p-3 pl-8 flex items-center justify-between">
+         <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-2">
+               <span className="text-xs font-mono text-muted-foreground">{remittance.date}</span>
+               <Badge variant="outline" className="text-[10px] h-4 px-1 border-amber-500/20 text-amber-700 dark:text-amber-400">
+                 {remittance.reference}
+               </Badge>
+            </div>
+            <span className="text-sm font-medium opacity-90">{remittance.client}</span>
+         </div>
+         <AmountDisplay amount={remittance.amount} type="remit" />
+      </div>
+
+      {/* Actions Overlay (On Hover or Always Visible) */}
+      <div className="absolute right-2 top-1/2 -translate-y-1/2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity bg-background/80 backdrop-blur-sm p-1 rounded-md shadow-sm border border-border/50">
+         <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10" onClick={onReject}>
+            <XCircle className="w-5 h-5" />
+         </Button>
+         <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-green-600 hover:text-green-600 hover:bg-green-500/10" onClick={onApprove}>
+            <CheckCircle2 className="w-5 h-5" />
+         </Button>
+      </div>
+    </motion.div>
+  );
+};
 
 const MatchedGroupRow = ({ 
   remittance, 
@@ -281,6 +348,8 @@ export default function ReconciliationPage() {
   const [bankSort, setBankSort] = useState<{ field: BankSortField, order: SortOrder }>({ field: 'date', order: 'desc' });
   const [remitSort, setRemitSort] = useState<{ field: RemitSortField, order: SortOrder }>({ field: 'date', order: 'desc' });
 
+  const [showSuggestions, setShowSuggestions] = useState(true);
+
   // Initial Data Load
   useEffect(() => {
     const { bankTransactions: b, remittances: r } = generateMockData();
@@ -291,12 +360,12 @@ export default function ReconciliationPage() {
   // Filtering & Sorting
   const filteredBank = useMemo(() => 
     bankTransactions.filter(t => 
-      (showMatched || t.status === 'unmatched') && 
+      (showMatched || (t.status !== 'matched' && t.status !== 'suggested')) && 
       (t.payee.toLowerCase().includes(bankFilter.toLowerCase()) || 
        t.amount.toString().includes(bankFilter) ||
        t.reference.includes(bankFilter))
     ).sort((a, b) => {
-       // Always put unmatched first
+       // Always put unmatched first (but exclude suggested from this specific sort if they are hidden)
        if (a.status !== b.status) return a.status === 'unmatched' ? -1 : 1;
        
        // Sort Logic
@@ -313,7 +382,7 @@ export default function ReconciliationPage() {
 
   const filteredRemit = useMemo(() => 
     remittances.filter(r => 
-      (showMatched || r.status === 'unmatched') &&
+      (showMatched || (r.status !== 'matched' && r.status !== 'suggested')) &&
       (r.client.toLowerCase().includes(remitFilter.toLowerCase()) || 
        r.amount.toString().includes(remitFilter) ||
        r.reference.toLowerCase().includes(remitFilter.toLowerCase()))
@@ -333,6 +402,31 @@ export default function ReconciliationPage() {
        return remitSort.order === 'asc' ? comparison : -comparison;
     }), [remittances, remitFilter, showMatched, remitSort]
   );
+
+  // Suggestions Logic
+  const suggestedMatches = useMemo(() => {
+    const suggestions = remittances.filter(r => r.status === 'suggested');
+    return suggestions.map(r => {
+      const bankTx = bankTransactions.find(b => b.id === r.suggestedMatchId);
+      return bankTx ? { remittance: r, bankTransaction: bankTx } : null;
+    }).filter((pair): pair is { remittance: Remittance, bankTransaction: BankTransaction } => pair !== null);
+  }, [remittances, bankTransactions]);
+
+  const handleApproveSuggestion = (remitId: string, bankId: string) => {
+    setBankTransactions(prev => prev.map(t => t.id === bankId ? { ...t, status: 'matched' } : t));
+    setRemittances(prev => prev.map(r => r.id === remitId ? { ...r, status: 'matched', matchedBankIds: [bankId] } : r));
+  };
+
+  const handleRejectSuggestion = (remitId: string, bankId: string) => {
+    setBankTransactions(prev => prev.map(t => t.id === bankId ? { ...t, status: 'unmatched' } : t));
+    setRemittances(prev => prev.map(r => r.id === remitId ? { ...r, status: 'unmatched', suggestedMatchId: undefined } : r));
+  };
+
+  const handleApproveAllSuggestions = () => {
+    suggestedMatches.forEach(({ remittance, bankTransaction }) => {
+      handleApproveSuggestion(remittance.id, bankTransaction.id);
+    });
+  };
 
   // Sorting Handlers
   const handleBankSort = (field: BankSortField) => {
@@ -525,10 +619,53 @@ export default function ReconciliationPage() {
       </header>
 
       {/* Main Workspace */}
-      <div className="flex-1 flex overflow-hidden relative">
+      <div className="flex-1 flex flex-col overflow-hidden relative">
         
-        {/* Left Panel: Bank Transactions */}
-        <div className="flex-1 flex flex-col border-r border-border/40 min-w-[400px]">
+        {/* Suggestion Inbox (Collapsible) */}
+        <AnimatePresence>
+          {suggestedMatches.length > 0 && showSuggestions && (
+            <motion.div 
+              initial={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              className="bg-amber-500/5 border-b border-amber-500/20 shrink-0"
+            >
+               <div className="px-6 py-3 flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
+                     <Sparkles className="w-4 h-4" />
+                     <span className="text-sm font-semibold">AI Suggestions</span>
+                     <Badge variant="secondary" className="bg-amber-500/10 text-amber-700 hover:bg-amber-500/20 border-0">
+                       {suggestedMatches.length} pending
+                     </Badge>
+                  </div>
+                  <div className="flex items-center gap-2">
+                     <Button size="sm" variant="ghost" className="text-xs h-7 text-muted-foreground hover:text-foreground" onClick={() => setShowSuggestions(false)}>
+                        Dismiss
+                     </Button>
+                     <Button size="sm" className="h-7 text-xs bg-amber-500 hover:bg-amber-600 text-white border-0" onClick={handleApproveAllSuggestions}>
+                        Approve All
+                     </Button>
+                  </div>
+               </div>
+               
+               <div className="px-6 pb-4 max-h-[200px] overflow-y-auto">
+                  {suggestedMatches.map(({ remittance, bankTransaction }) => (
+                    <SuggestedMatchRow 
+                      key={remittance.id}
+                      remittance={remittance}
+                      bankTransaction={bankTransaction}
+                      onApprove={() => handleApproveSuggestion(remittance.id, bankTransaction.id)}
+                      onReject={() => handleRejectSuggestion(remittance.id, bankTransaction.id)}
+                    />
+                  ))}
+               </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Unmatched Area (Independent Scroll) */}
+        <div className="flex-1 flex overflow-hidden min-h-0">
+          {/* Left Panel: Bank Transactions */}
+          <div className="flex-1 flex flex-col border-r border-border/40 min-w-[400px]">
           {/* Panel Header */}
           <div className="h-12 border-b border-border/40 flex items-center px-4 gap-2 bg-background/50">
              <div className="w-2 h-2 rounded-full bg-bank shadow-[0_0_8px_var(--color-bank)]" />
@@ -640,6 +777,43 @@ export default function ReconciliationPage() {
              <span className="font-mono">Total: ${filteredRemit.reduce((acc, r) => acc + r.amount, 0).toLocaleString()}</span>
           </div>
         </div>
+        </div>
+        
+        {/* Matched History Section (Unified Scroll) */}
+        <AnimatePresence>
+          {showMatched && (
+             <motion.div 
+               initial={{ height: 0, opacity: 0 }}
+               animate={{ height: '40%', opacity: 1 }}
+               exit={{ height: 0, opacity: 0 }}
+               className="border-t-4 border-double border-border/50 bg-muted/5 flex flex-col shrink-0"
+             >
+                <div className="h-8 flex items-center px-4 bg-muted/20 border-b border-border/40 justify-between">
+                   <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+                     <History className="w-3 h-3" />
+                     Matched History
+                   </span>
+                   <span className="text-xs text-muted-foreground">{matchedGroups.length} groups</span>
+                </div>
+                
+                <div className="flex-1 overflow-y-auto p-4 scroll-smooth">
+                   <div className="space-y-2">
+                     {matchedGroups.map((group, idx) => (
+                       <MatchedGroupRow 
+                         key={group.remittance.id}
+                         remittance={group.remittance}
+                         bankTransactions={group.bankTransactions}
+                         index={idx}
+                       />
+                     ))}
+                     {matchedGroups.length === 0 && (
+                        <div className="text-center py-10 text-muted-foreground text-sm">No matched items to display.</div>
+                     )}
+                   </div>
+                </div>
+             </motion.div>
+          )}
+        </AnimatePresence>
 
       </div>
       
