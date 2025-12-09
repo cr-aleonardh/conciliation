@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, ArrowRightLeft, X, RefreshCw, Layers, Keyboard, Eye, EyeOff, CheckCircle2 } from 'lucide-react';
+import { Search, ArrowRightLeft, X, RefreshCw, Layers, Keyboard, Eye, EyeOff, CheckCircle2, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { generateMockData, BankTransaction, Remittance } from '../lib/mockData';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -9,6 +9,44 @@ import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+
+// --- Types ---
+
+type BankSortField = 'date' | 'reference' | 'payee' | 'amount';
+type RemitSortField = 'date' | 'reference' | 'client' | 'amount' | 'orderNumber';
+type SortOrder = 'asc' | 'desc';
+
+// --- Components ---
+
+const SortButton = ({ 
+  label, 
+  active, 
+  direction, 
+  onClick 
+}: { 
+  label: string, 
+  active: boolean, 
+  direction: SortOrder, 
+  onClick: () => void 
+}) => (
+  <Button 
+    variant="ghost" 
+    size="sm" 
+    onClick={onClick}
+    className={cn(
+      "h-6 px-2 text-[10px] uppercase font-semibold tracking-wider gap-1",
+      active ? "text-foreground bg-muted" : "text-muted-foreground hover:text-foreground"
+    )}
+  >
+    {label}
+    {active ? (
+      direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
+    ) : (
+      <ArrowUpDown className="w-3 h-3 opacity-30" />
+    )}
+  </Button>
+);
 
 // --- Components ---
 
@@ -166,6 +204,10 @@ export default function ReconciliationPage() {
   
   const [showMatched, setShowMatched] = useState(false);
 
+  // Sorting State
+  const [bankSort, setBankSort] = useState<{ field: BankSortField, order: SortOrder }>({ field: 'date', order: 'desc' });
+  const [remitSort, setRemitSort] = useState<{ field: RemitSortField, order: SortOrder }>({ field: 'date', order: 'desc' });
+
   // Initial Data Load
   useEffect(() => {
     const { bankTransactions: b, remittances: r } = generateMockData();
@@ -173,7 +215,7 @@ export default function ReconciliationPage() {
     setRemittances(r);
   }, []);
 
-  // Filtering
+  // Filtering & Sorting
   const filteredBank = useMemo(() => 
     bankTransactions.filter(t => 
       (showMatched || t.status === 'unmatched') && 
@@ -183,8 +225,17 @@ export default function ReconciliationPage() {
     ).sort((a, b) => {
        // Always put unmatched first
        if (a.status !== b.status) return a.status === 'unmatched' ? -1 : 1;
-       return 0; 
-    }), [bankTransactions, bankFilter, showMatched]
+       
+       // Sort Logic
+       let comparison = 0;
+       switch (bankSort.field) {
+         case 'date': comparison = a.date.localeCompare(b.date); break;
+         case 'amount': comparison = a.amount - b.amount; break;
+         case 'payee': comparison = a.payee.localeCompare(b.payee); break;
+         case 'reference': comparison = a.reference.localeCompare(b.reference); break;
+       }
+       return bankSort.order === 'asc' ? comparison : -comparison;
+    }), [bankTransactions, bankFilter, showMatched, bankSort]
   );
 
   const filteredRemit = useMemo(() => 
@@ -196,9 +247,35 @@ export default function ReconciliationPage() {
     ).sort((a, b) => {
        // Always put unmatched first
        if (a.status !== b.status) return a.status === 'unmatched' ? -1 : 1;
-       return 0;
-    }), [remittances, remitFilter, showMatched]
+
+       // Sort Logic
+       let comparison = 0;
+       switch (remitSort.field) {
+         case 'date': comparison = a.date.localeCompare(b.date); break;
+         case 'amount': comparison = a.amount - b.amount; break;
+         case 'client': comparison = a.client.localeCompare(b.client); break;
+         case 'reference': comparison = a.reference.localeCompare(b.reference); break;
+         case 'orderNumber': comparison = a.orderNumber.localeCompare(b.orderNumber); break;
+       }
+       return remitSort.order === 'asc' ? comparison : -comparison;
+    }), [remittances, remitFilter, showMatched, remitSort]
   );
+
+  // Sorting Handlers
+  const handleBankSort = (field: BankSortField) => {
+    setBankSort(prev => ({
+      field,
+      order: prev.field === field && prev.order === 'desc' ? 'asc' : 'desc'
+    }));
+  };
+
+  const handleRemitSort = (field: RemitSortField) => {
+    setRemitSort(prev => ({
+      field,
+      order: prev.field === field && prev.order === 'desc' ? 'asc' : 'desc'
+    }));
+  };
+
 
 
   // Selection Handling
@@ -362,7 +439,7 @@ export default function ReconciliationPage() {
           {/* Panel Header */}
           <div className="h-12 border-b border-border/40 flex items-center px-4 gap-2 bg-background/50">
              <div className="w-2 h-2 rounded-full bg-bank shadow-[0_0_8px_var(--color-bank)]" />
-             <span className="text-sm font-semibold text-bank uppercase tracking-wider">Bank Transactions</span>
+             <span className="text-sm font-semibold text-bank uppercase tracking-wider whitespace-nowrap">Bank Transactions</span>
              <div className="ml-auto relative w-48">
                 <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
                 <Input 
@@ -372,6 +449,14 @@ export default function ReconciliationPage() {
                   onChange={(e) => setBankFilter(e.target.value)}
                 />
              </div>
+          </div>
+
+          {/* Sort Bar */}
+          <div className="h-8 border-b border-border/40 flex items-center px-2 gap-1 bg-muted/10 overflow-x-auto no-scrollbar">
+             <SortButton label="Date" active={bankSort.field === 'date'} direction={bankSort.order} onClick={() => handleBankSort('date')} />
+             <SortButton label="Ref" active={bankSort.field === 'reference'} direction={bankSort.order} onClick={() => handleBankSort('reference')} />
+             <SortButton label="Payee" active={bankSort.field === 'payee'} direction={bankSort.order} onClick={() => handleBankSort('payee')} />
+             <SortButton label="Amount" active={bankSort.field === 'amount'} direction={bankSort.order} onClick={() => handleBankSort('amount')} />
           </div>
 
           {/* List Area */}
@@ -414,7 +499,7 @@ export default function ReconciliationPage() {
           {/* Panel Header */}
           <div className="h-12 border-b border-border/40 flex items-center px-4 gap-2 bg-background/50">
              <div className="w-2 h-2 rounded-full bg-remit shadow-[0_0_8px_var(--color-remit)]" />
-             <span className="text-sm font-semibold text-remit uppercase tracking-wider">Remittances</span>
+             <span className="text-sm font-semibold text-remit uppercase tracking-wider whitespace-nowrap">Remittances</span>
              <div className="ml-auto relative w-48">
                 <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
                 <Input 
@@ -424,6 +509,15 @@ export default function ReconciliationPage() {
                   onChange={(e) => setRemitFilter(e.target.value)}
                 />
              </div>
+          </div>
+
+          {/* Sort Bar */}
+          <div className="h-8 border-b border-border/40 flex items-center px-2 gap-1 bg-muted/10 overflow-x-auto no-scrollbar">
+             <SortButton label="Date" active={remitSort.field === 'date'} direction={remitSort.order} onClick={() => handleRemitSort('date')} />
+             <SortButton label="Ref" active={remitSort.field === 'reference'} direction={remitSort.order} onClick={() => handleRemitSort('reference')} />
+             <SortButton label="Client" active={remitSort.field === 'client'} direction={remitSort.order} onClick={() => handleRemitSort('client')} />
+             <SortButton label="Order" active={remitSort.field === 'orderNumber'} direction={remitSort.order} onClick={() => handleRemitSort('orderNumber')} />
+             <SortButton label="Amount" active={remitSort.field === 'amount'} direction={remitSort.order} onClick={() => handleRemitSort('amount')} />
           </div>
 
           {/* List Area */}
