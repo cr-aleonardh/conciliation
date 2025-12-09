@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, ArrowRightLeft, X, RefreshCw, Layers, Keyboard, Eye, EyeOff, CheckCircle2, ArrowUpDown, ArrowUp, ArrowDown, Sparkles, Check, ThumbsUp, ThumbsDown, XCircle, History } from 'lucide-react';
+import { Search, ArrowRightLeft, X, RefreshCw, Layers, Keyboard, Eye, EyeOff, CheckCircle2, ArrowUpDown, ArrowUp, ArrowDown, Sparkles, Check, ThumbsUp, ThumbsDown, XCircle, History, GripHorizontal } from 'lucide-react';
 import { generateMockData, BankTransaction, Remittance } from '../lib/mockData';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -360,6 +360,36 @@ export default function ReconciliationPage() {
 
   const [showSuggestions, setShowSuggestions] = useState(true);
 
+  // Resize Logic
+  const [suggestionsHeight, setSuggestionsHeight] = useState(350);
+  const [isResizingSuggestions, setIsResizingSuggestions] = useState(false);
+
+  useEffect(() => {
+    if (!isResizingSuggestions) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+        setSuggestionsHeight(prev => Math.max(150, Math.min(window.innerHeight * 0.8, prev + e.movementY)));
+    };
+
+    const handleMouseUp = () => {
+        setIsResizingSuggestions(false);
+        document.body.style.cursor = 'default';
+        document.body.style.userSelect = 'auto';
+    };
+
+    document.body.style.cursor = 'row-resize';
+    document.body.style.userSelect = 'none';
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+        window.removeEventListener('mousemove', handleMouseMove);
+        window.removeEventListener('mouseup', handleMouseUp);
+        document.body.style.cursor = 'default';
+        document.body.style.userSelect = 'auto';
+    };
+  }, [isResizingSuggestions]);
+
   // Initial Data Load
   useEffect(() => {
     const { bankTransactions: b, remittances: r } = generateMockData();
@@ -637,9 +667,9 @@ export default function ReconciliationPage() {
             <motion.div 
               initial={{ height: 'auto', opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
-              className="bg-amber-500/5 border-b border-amber-500/20 shrink-0"
+              className="bg-amber-500/5 border-b border-amber-500/20 shrink-0 flex flex-col relative"
             >
-               <div className="px-6 py-3 flex items-center justify-between">
+               <div className="px-6 py-3 flex items-center justify-between shrink-0">
                   <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
                      <Sparkles className="w-4 h-4" />
                      <span className="text-sm font-semibold">AI Suggestions</span>
@@ -657,7 +687,10 @@ export default function ReconciliationPage() {
                   </div>
                </div>
                
-               <div className="px-6 pb-4 max-h-[200px] overflow-y-auto">
+               <div 
+                 className="px-6 pb-2 overflow-y-auto"
+                 style={{ height: suggestionsHeight }}
+               >
                   {suggestedMatches.map(({ remittance, bankTransaction }) => (
                     <SuggestedMatchRow 
                       key={remittance.id}
@@ -667,6 +700,17 @@ export default function ReconciliationPage() {
                       onReject={() => handleRejectSuggestion(remittance.id, bankTransaction.id)}
                     />
                   ))}
+               </div>
+
+               {/* Resize Handle */}
+               <div 
+                 className="h-4 w-full cursor-row-resize flex items-center justify-center hover:bg-amber-500/10 active:bg-amber-500/20 transition-colors border-t border-amber-500/10 select-none"
+                 onMouseDown={(e) => {
+                    e.preventDefault();
+                    setIsResizingSuggestions(true);
+                 }}
+               >
+                  <GripHorizontal className="w-4 h-4 text-amber-500/30" />
                </div>
             </motion.div>
           )}
