@@ -50,6 +50,69 @@ const SortButton = ({
 
 // --- Components ---
 
+const MatchedGroupRow = ({ 
+  remittance, 
+  bankTransactions 
+}: { 
+  remittance: Remittance, 
+  bankTransactions: BankTransaction[] 
+}) => {
+  return (
+    <div className="flex border-b border-border/40 hover:bg-muted/20 transition-colors group">
+      {/* Left Side: Bank Transactions Stack */}
+      <div className="flex-1 min-w-[400px] border-r border-border/40 p-2 space-y-2">
+        {bankTransactions.map(t => (
+          <div key={t.id} className="flex items-center justify-between p-3 rounded-md bg-muted/20 border border-transparent opacity-70 group-hover:opacity-100 transition-opacity h-[72px]">
+             <div className="flex flex-col gap-1">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-3 h-3 text-match" />
+                  <span className="text-xs font-mono text-muted-foreground">{t.date}</span>
+                  <Badge variant="outline" className="text-[10px] h-4 px-1 border-muted-foreground/20 text-muted-foreground/40">
+                    {t.reference}
+                  </Badge>
+                </div>
+                <span className="text-sm font-medium text-muted-foreground line-through decoration-muted-foreground/30">
+                  {t.payee}
+                </span>
+             </div>
+             <AmountDisplay amount={t.amount} type="bank" dimmed />
+          </div>
+        ))}
+      </div>
+
+      {/* Right Side: Remittance */}
+      <div className="flex-1 min-w-[400px] p-2">
+        <div className="flex items-center justify-between p-3 rounded-md bg-muted/20 border border-transparent opacity-70 group-hover:opacity-100 transition-opacity h-full">
+            <div className="flex flex-col gap-1 w-full">
+              <div className="flex items-center gap-2">
+                 <CheckCircle2 className="w-3 h-3 text-match" />
+                 <span className="text-xs font-mono text-muted-foreground">{remittance.date}</span>
+                 <Badge variant="outline" className="text-[10px] h-4 px-1 border-muted-foreground/20 text-muted-foreground/40">
+                   {remittance.reference}
+                 </Badge>
+                 <span className="text-[10px] font-mono text-muted-foreground/40">{remittance.orderNumber}</span>
+              </div>
+              <div>
+                 <span className="text-sm font-medium text-muted-foreground line-through decoration-muted-foreground/30">
+                   {remittance.client}
+                 </span>
+              </div>
+              {bankTransactions.length > 1 && (
+                <div className="flex items-center gap-2 text-xs text-match font-medium mt-1">
+                  <Layers className="w-3 h-3" />
+                  <span>Matched {bankTransactions.length} items</span>
+                </div>
+              )}
+            </div>
+            <div className="text-right pl-4 shrink-0">
+               <AmountDisplay amount={remittance.amount} type="remit" dimmed />
+            </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const AmountDisplay = ({ amount, type, dimmed }: { amount: number, type: 'bank' | 'remit', dimmed?: boolean }) => (
   <span className={cn(
     "font-mono font-medium tracking-tight transition-colors",
@@ -58,9 +121,6 @@ const AmountDisplay = ({ amount, type, dimmed }: { amount: number, type: 'bank' 
     ${amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
   </span>
 );
-
-const ROW_HEIGHT = 72; // Fixed height in px
-const GAP = 8; // margin-bottom
 
 const TransactionRow = ({ 
   data, 
@@ -353,6 +413,22 @@ export default function ReconciliationPage() {
   const difference = selectedBankTotal - selectedRemitTotal;
   const isMatchable = selectedBankIds.size > 0 && selectedRemitIds.size > 0;
   const isPerfectMatch = Math.abs(difference) < 0.01;
+
+  // Group Matched Items
+  const matchedGroups = useMemo(() => {
+    if (!showMatched) return [];
+    
+    // 1. Find matched remittances
+    const matchedRemits = remittances.filter(r => r.status === 'matched');
+    
+    // 2. Map them to their bank transactions
+    return matchedRemits.map(r => {
+       const relatedBankTxns = bankTransactions.filter(b => 
+         b.status === 'matched' && r.matchedBankIds?.includes(b.id)
+       );
+       return { remittance: r, bankTransactions: relatedBankTxns };
+    }).sort((a, b) => b.remittance.date.localeCompare(a.remittance.date)); // Sort by date desc
+  }, [remittances, bankTransactions, showMatched]);
 
   return (
     <div className="h-screen w-full bg-background text-foreground flex flex-col overflow-hidden font-sans">
