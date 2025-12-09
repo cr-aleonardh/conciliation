@@ -122,6 +122,9 @@ const AmountDisplay = ({ amount, type, dimmed }: { amount: number, type: 'bank' 
   </span>
 );
 
+const ROW_HEIGHT = 72; // Fixed height in px
+const GAP = 8; // margin-bottom
+
 const TransactionRow = ({ 
   data, 
   isSelected, 
