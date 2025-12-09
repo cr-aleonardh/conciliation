@@ -136,7 +136,7 @@ const MatchedGroupRow = ({
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="w-3 h-3 text-match" />
                   <span className="text-xs font-mono text-muted-foreground">{t.date}</span>
-                  <Badge variant="outline" className="text-[11px] h-5 px-1.5 font-mono font-semibold border-muted-foreground/30 text-muted-foreground/70">
+                  <Badge variant="secondary" className="text-[11px] h-5 px-1.5 font-mono font-semibold bg-blue-50/50 text-blue-700/70 border-blue-200/50 dark:bg-blue-900/10 dark:text-blue-400/70 dark:border-blue-800/50">
                     {t.reference}
                   </Badge>
                 </div>
@@ -156,7 +156,7 @@ const MatchedGroupRow = ({
               <div className="flex items-center gap-2">
                  <CheckCircle2 className="w-3 h-3 text-match" />
                  <span className="text-xs font-mono text-muted-foreground">{remittance.date}</span>
-                 <Badge variant="outline" className="text-[11px] h-5 px-1.5 font-mono font-semibold border-muted-foreground/30 text-muted-foreground/70">
+                 <Badge variant="secondary" className="text-[11px] h-5 px-1.5 font-mono font-semibold bg-pink-50/50 text-pink-700/70 border-pink-200/50 dark:bg-pink-900/10 dark:text-pink-400/70 dark:border-pink-800/50">
                    {remittance.reference}
                  </Badge>
                  <span className="text-[10px] font-mono text-muted-foreground/40">{remittance.orderNumber}</span>
@@ -225,7 +225,11 @@ const TransactionRow = ({
         <div className="flex items-center gap-2">
           {isMatched && <CheckCircle2 className="w-3 h-3 text-match" />}
           <span className={cn("text-xs font-mono", isMatched ? "text-muted-foreground/50" : "text-muted-foreground")}>{data.date}</span>
-          <Badge variant="outline" className={cn("text-[11px] h-5 px-1.5 font-mono font-semibold", isMatched ? "border-muted-foreground/20 text-muted-foreground/40" : "border-muted-foreground/30 text-muted-foreground")}>
+          <Badge variant="secondary" className={cn("text-[11px] h-5 px-1.5 font-mono font-bold border", 
+            isMatched 
+              ? "bg-blue-50/50 text-blue-700/50 border-blue-200/50 dark:bg-blue-900/10 dark:text-blue-400/50 dark:border-blue-800/50" 
+              : "bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800"
+          )}>
             {data.reference}
           </Badge>
         </div>
@@ -296,7 +300,11 @@ const RemittanceRow = ({
         <div className="flex items-center gap-2">
            {isMatched && <CheckCircle2 className="w-3 h-3 text-match" />}
            <span className={cn("text-xs font-mono", isMatched ? "text-muted-foreground/50" : "text-muted-foreground")}>{data.date}</span>
-           <Badge variant="outline" className={cn("text-[11px] h-5 px-1.5 font-mono font-semibold", isMatched ? "border-muted-foreground/20 text-muted-foreground/40" : "border-muted-foreground/30 text-muted-foreground")}>
+           <Badge variant="secondary" className={cn("text-[11px] h-5 px-1.5 font-mono font-bold border", 
+             isMatched 
+               ? "bg-pink-50/50 text-pink-700/50 border-pink-200/50 dark:bg-pink-900/10 dark:text-pink-400/50 dark:border-pink-800/50" 
+               : "bg-pink-100 text-pink-800 border-pink-200 dark:bg-pink-900/30 dark:text-pink-300 dark:border-pink-800"
+           )}>
              {data.reference}
            </Badge>
            <span className={cn("text-[10px] font-mono", isMatched ? "text-muted-foreground/40" : "text-muted-foreground/70")}>{data.orderNumber}</span>
