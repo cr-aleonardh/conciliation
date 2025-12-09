@@ -81,7 +81,7 @@ const SuggestedMatchRow = ({
          <div className="flex flex-col gap-1">
             <div className="flex items-center gap-2">
                <span className="text-xs font-mono text-muted-foreground">{bankTransaction.date}</span>
-               <Badge variant="outline" className="text-[10px] h-4 px-1 border-amber-500/20 text-amber-700 dark:text-amber-400">
+               <Badge variant="secondary" className="text-xs h-5 px-1.5 font-mono font-bold bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
                  {bankTransaction.reference}
                </Badge>
             </div>
@@ -95,7 +95,7 @@ const SuggestedMatchRow = ({
          <div className="flex flex-col gap-1">
             <div className="flex items-center gap-2">
                <span className="text-xs font-mono text-muted-foreground">{remittance.date}</span>
-               <Badge variant="outline" className="text-[10px] h-4 px-1 border-amber-500/20 text-amber-700 dark:text-amber-400">
+               <Badge variant="secondary" className="text-xs h-5 px-1.5 font-mono font-bold bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
                  {remittance.reference}
                </Badge>
             </div>
@@ -136,7 +136,7 @@ const MatchedGroupRow = ({
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="w-3 h-3 text-match" />
                   <span className="text-xs font-mono text-muted-foreground">{t.date}</span>
-                  <Badge variant="outline" className="text-[10px] h-4 px-1 border-muted-foreground/20 text-muted-foreground/40">
+                  <Badge variant="outline" className="text-[11px] h-5 px-1.5 font-mono font-semibold border-muted-foreground/30 text-muted-foreground/70">
                     {t.reference}
                   </Badge>
                 </div>
@@ -156,7 +156,7 @@ const MatchedGroupRow = ({
               <div className="flex items-center gap-2">
                  <CheckCircle2 className="w-3 h-3 text-match" />
                  <span className="text-xs font-mono text-muted-foreground">{remittance.date}</span>
-                 <Badge variant="outline" className="text-[10px] h-4 px-1 border-muted-foreground/20 text-muted-foreground/40">
+                 <Badge variant="outline" className="text-[11px] h-5 px-1.5 font-mono font-semibold border-muted-foreground/30 text-muted-foreground/70">
                    {remittance.reference}
                  </Badge>
                  <span className="text-[10px] font-mono text-muted-foreground/40">{remittance.orderNumber}</span>

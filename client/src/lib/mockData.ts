@@ -26,6 +26,14 @@ export const generateMockData = () => {
   const payees = ['Stripe Payout', 'Wire Transfer', 'ACH Credit', 'Check Deposit', 'Intl Transfer'];
   const clients = ['Acme Corp', 'Globex Inc', 'Soylent Corp', 'Initech', 'Umbrella Corp', 'Cyberdyne', 'Massive Dynamic'];
 
+  const generateReference = () => {
+    const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    const char1 = letters.charAt(Math.floor(Math.random() * letters.length));
+    const char2 = letters.charAt(Math.floor(Math.random() * letters.length));
+    const digits = Math.floor(Math.random() * 1000000).toString().padStart(6, '0');
+    return `${char1}${char2}${digits}`;
+  };
+
   // Generate 100 bank transactions
   for (let i = 0; i < 50; i++) {
     const amount = Math.floor(Math.random() * 5000) + 100;
@@ -33,7 +41,7 @@ export const generateMockData = () => {
       id: `bt-${i}`,
       date: new Date(2024, 0, Math.floor(Math.random() * 30) + 1).toISOString().split('T')[0],
       payee: payees[Math.floor(Math.random() * payees.length)],
-      reference: Math.random().toString().slice(2, 10),
+      reference: generateReference(),
       amount: amount,
       status: 'unmatched'
     });
@@ -52,7 +60,7 @@ export const generateMockData = () => {
     remittances.push({
       id: `rm-${i}`,
       date: new Date(2024, 0, Math.floor(Math.random() * 30) + 1).toISOString().split('T')[0],
-      reference: `INV-${Math.floor(Math.random() * 10000)}`,
+      reference: generateReference(),
       client: clients[Math.floor(Math.random() * clients.length)],
       orderNumber: `ORD-${Math.floor(Math.random() * 99999)}`,
       amount: amount,
@@ -73,7 +81,7 @@ export const generateMockData = () => {
        date: '2023-12-05',
        amount,
        payee: `Suggested Client ${i}`,
-       reference: `REF-SUG-${i}`,
+       reference: generateReference(),
        status: 'suggested'
      };
 
@@ -82,7 +90,7 @@ export const generateMockData = () => {
        date: '2023-12-05',
        amount,
        client: `Suggested Client ${i}`,
-       reference: `REF-SUG-${i}`,
+       reference: generateReference(),
        orderNumber: `ORD-${i}`,
        status: 'suggested',
        suggestedMatchId: bankTx.id
