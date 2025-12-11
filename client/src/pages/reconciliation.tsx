@@ -10,6 +10,7 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 
 // --- Types ---
 
@@ -661,6 +662,9 @@ export default function ReconciliationPage() {
       {/* Main Workspace */}
       <div className="flex-1 flex flex-col overflow-hidden relative">
         
+        <ResizablePanelGroup direction="vertical">
+          <ResizablePanel defaultSize={showMatched ? 60 : 100} minSize={20}>
+            <div className="flex flex-col h-full overflow-hidden">
         {/* Suggestion Inbox (Collapsible) */}
         <AnimatePresence>
           {suggestedMatches.length > 0 && showSuggestions && (
@@ -832,43 +836,42 @@ export default function ReconciliationPage() {
           </div>
         </div>
         </div>
+        </div>
+        </ResizablePanel>
         
-        {/* Matched History Section (Unified Scroll) */}
-        <AnimatePresence>
-          {showMatched && (
-             <motion.div 
-               initial={{ height: 0, opacity: 0 }}
-               animate={{ height: '40%', opacity: 1 }}
-               exit={{ height: 0, opacity: 0 }}
-               className="border-t-4 border-double border-border/50 bg-muted/5 flex flex-col shrink-0"
-             >
-                <div className="h-8 flex items-center px-4 bg-muted/20 border-b border-border/40 justify-between">
-                   <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-                     <History className="w-3 h-3" />
-                     Matched History
-                   </span>
-                   <span className="text-xs text-muted-foreground">{matchedGroups.length} groups</span>
-                </div>
-                
-                <div className="flex-1 overflow-y-auto p-4 scroll-smooth">
-                   <div className="space-y-2">
-                     {matchedGroups.map((group, idx) => (
-                       <MatchedGroupRow 
-                         key={group.remittance.id}
-                         remittance={group.remittance}
-                         bankTransactions={group.bankTransactions}
-                         index={idx}
-                       />
-                     ))}
-                     {matchedGroups.length === 0 && (
-                        <div className="text-center py-10 text-muted-foreground text-sm">No matched items to display.</div>
-                     )}
-                   </div>
-                </div>
-             </motion.div>
+        {showMatched && (
+             <>
+               <ResizableHandle withHandle />
+               <ResizablePanel defaultSize={40} minSize={20}>
+                 <div className="flex flex-col h-full border-t-4 border-double border-border/50 bg-muted/5">
+                    <div className="h-8 flex items-center px-4 bg-muted/20 border-b border-border/40 justify-between shrink-0">
+                       <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+                         <History className="w-3 h-3" />
+                         Matched History
+                       </span>
+                       <span className="text-xs text-muted-foreground">{matchedGroups.length} groups</span>
+                    </div>
+                    
+                    <div className="flex-1 overflow-y-auto p-4 scroll-smooth">
+                       <div className="space-y-2">
+                         {matchedGroups.map((group, idx) => (
+                           <MatchedGroupRow 
+                             key={group.remittance.id}
+                             remittance={group.remittance}
+                             bankTransactions={group.bankTransactions}
+                             index={idx}
+                           />
+                         ))}
+                         {matchedGroups.length === 0 && (
+                            <div className="text-center py-10 text-muted-foreground text-sm">No matched items to display.</div>
+                         )}
+                       </div>
+                    </div>
+                 </div>
+               </ResizablePanel>
+             </>
           )}
-        </AnimatePresence>
-
+        </ResizablePanelGroup>
       </div>
       
       {/* Footer / Shortcuts Help */}
