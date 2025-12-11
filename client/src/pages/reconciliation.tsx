@@ -148,6 +148,7 @@ const SuggestedMatchRow = ({
                <Badge variant="secondary" className="text-xs h-5 px-1.5 font-mono font-bold bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
                  {remittance.reference}
                </Badge>
+               <span className="text-[10px] font-mono text-muted-foreground/40">{remittance.orderNumber}</span>
                <MatchStatsDisplay stats={stats} />
             </div>
             <span className="text-sm font-medium opacity-90">{remittance.client}</span>
