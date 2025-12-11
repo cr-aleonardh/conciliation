@@ -430,7 +430,7 @@ const RemittanceRow = ({
            )}>
              {data.reference}
            </Badge>
-           <span className={cn("text-[10px] font-mono", isMatched ? "text-muted-foreground/40" : "text-muted-foreground/70")}>{data.orderNumber}</span>
+           <span className={cn("text-xs font-mono", isMatched ? "text-muted-foreground/40" : "text-muted-foreground/70")}>{data.orderNumber}</span>
            {matchStats && <MatchStatsDisplay stats={matchStats} />}
         </div>
 
