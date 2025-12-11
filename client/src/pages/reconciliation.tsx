@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, ArrowRightLeft, X, RefreshCw, Layers, Keyboard, Eye, EyeOff, CheckCircle2, ArrowUpDown, ArrowUp, ArrowDown, Sparkles, Check, ThumbsUp, ThumbsDown, XCircle, History, GripHorizontal } from 'lucide-react';
+import { Search, ArrowRightLeft, X, RefreshCw, Layers, Keyboard, Eye, EyeOff, CheckCircle2, ArrowUpDown, ArrowUp, ArrowDown, Sparkles, Check, ThumbsUp, ThumbsDown, XCircle, History, GripHorizontal, Unlink } from 'lucide-react';
 import { generateMockData, BankTransaction, Remittance } from '../lib/mockData';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -121,14 +121,69 @@ const SuggestedMatchRow = ({
 const MatchedGroupRow = ({ 
   remittance, 
   bankTransactions,
-  index
+  index,
+  onUnmatch
 }: { 
   remittance: Remittance, 
   bankTransactions: BankTransaction[],
-  index: number
+  index: number,
+  onUnmatch: () => void
 }) => {
+  const [isConfirming, setIsConfirming] = useState(false);
+
   return (
-    <div className="flex border-b border-border/40 hover:bg-muted/20 transition-colors group">
+    <div className="flex border-b border-border/40 hover:bg-muted/20 transition-colors group relative">
+      {/* Unmatch Action Overlay */}
+      <div className="absolute right-2 top-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
+         {isConfirming ? (
+            <div className="flex items-center gap-2 bg-background/95 backdrop-blur shadow-md rounded-md p-1.5 border border-border animate-in fade-in zoom-in-95 duration-200">
+               <span className="text-[10px] font-semibold text-muted-foreground px-1 uppercase tracking-wider">Unmatch?</span>
+               <Button 
+                 size="sm" 
+                 variant="destructive" 
+                 className="h-6 px-2 text-[10px] font-bold" 
+                 onClick={(e) => {
+                   e.stopPropagation();
+                   onUnmatch();
+                   setIsConfirming(false);
+                 }}
+               >
+                  Confirm
+               </Button>
+               <Button 
+                 size="sm" 
+                 variant="ghost" 
+                 className="h-6 w-6 p-0 hover:bg-muted" 
+                 onClick={(e) => {
+                   e.stopPropagation();
+                   setIsConfirming(false);
+                 }}
+               >
+                  <X className="w-3 h-3" />
+               </Button>
+            </div>
+         ) : (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button 
+                    size="sm" 
+                    variant="ghost" 
+                    className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive bg-background/50 border border-transparent hover:border-border shadow-sm" 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsConfirming(true);
+                    }}
+                  >
+                      <Unlink className="w-3.5 h-3.5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="left" className="text-xs">Unmatch items</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+         )}
+      </div>
+
       {/* Left Side: Bank Transactions Stack */}
       <div className="flex-1 min-w-[400px] border-r border-border/40 p-2 space-y-2">
         {bankTransactions.map(t => (
@@ -467,6 +522,19 @@ export default function ReconciliationPage() {
     suggestedMatches.forEach(({ remittance, bankTransaction }) => {
       handleApproveSuggestion(remittance.id, bankTransaction.id);
     });
+  };
+
+  // Unmatch Logic
+  const handleUnmatch = (remitId: string, bankIds: string[]) => {
+    // Update bank transactions
+    setBankTransactions(prev => prev.map(t => 
+      bankIds.includes(t.id) ? { ...t, status: 'unmatched' } : t
+    ));
+    
+    // Update remittance
+    setRemittances(prev => prev.map(r => 
+      r.id === remitId ? { ...r, status: 'unmatched', matchedBankIds: undefined } : r
+    ));
   };
 
   // Sorting Handlers
@@ -860,6 +928,10 @@ export default function ReconciliationPage() {
                              remittance={group.remittance}
                              bankTransactions={group.bankTransactions}
                              index={idx}
+                             onUnmatch={() => handleUnmatch(
+                               group.remittance.id, 
+                               group.bankTransactions.map(b => b.id)
+                             )}
                            />
                          ))}
                          {matchedGroups.length === 0 && (
