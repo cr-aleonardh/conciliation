@@ -417,9 +417,10 @@ const RemittanceRow = ({
       {isSelected && !isMatched && (
         <div className="absolute -left-1 top-1/2 -translate-y-1/2 w-1 h-8 bg-remit rounded-r-full shadow-[0_0_10px_var(--color-remit)]" />
       )}
+
       <div className="flex flex-col gap-1">
         {/* Top Line: Date | Reference | Order Number */}
-        <div className="flex items-center gap-2 flex-wrap text-[24px]">
+        <div className="flex items-center gap-2 flex-wrap">
            {isMatched && <CheckCircle2 className="w-3 h-3 text-match" />}
            <span className={cn("text-xs font-mono", isMatched ? "text-muted-foreground/50" : "text-muted-foreground")}>{data.date}</span>
            <Badge variant="secondary" className={cn("text-[11px] h-5 px-1.5 font-mono font-bold border", 
@@ -454,6 +455,7 @@ const RemittanceRow = ({
           </motion.div>
         )}
       </div>
+
       {/* Amount Display - Vertically Centered */}
       <div className="text-right pl-4 shrink-0">
          <AmountDisplay amount={data.amount} type="remit" dimmed={isMatched} />
