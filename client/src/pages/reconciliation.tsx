@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, ArrowRightLeft, X, RefreshCw, Layers, Keyboard, Eye, EyeOff, CheckCircle2, ArrowUpDown, ArrowUp, ArrowDown, Sparkles, Check, ThumbsUp, ThumbsDown, XCircle, History, GripHorizontal, Moon, Sun } from 'lucide-react';
+import { Search, ArrowRightLeft, X, RefreshCw, Layers, Keyboard, Eye, EyeOff, CheckCircle2, ArrowUpDown, ArrowUp, ArrowDown, Sparkles, Check, ThumbsUp, ThumbsDown, XCircle, History, GripHorizontal } from 'lucide-react';
 import { generateMockData, BankTransaction, Remittance } from '../lib/mockData';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -10,7 +10,6 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { useTheme } from "@/components/theme-provider";
 
 // --- Types ---
 
@@ -344,7 +343,6 @@ const RemittanceRow = ({
 // --- Main Page ---
 
 export default function ReconciliationPage() {
-  const { theme, setTheme } = useTheme();
   const [bankTransactions, setBankTransactions] = useState<BankTransaction[]>([]);
   const [remittances, setRemittances] = useState<Remittance[]>([]);
   
@@ -656,17 +654,6 @@ export default function ReconciliationPage() {
              <Button variant="outline" size="sm" className="gap-2" onClick={() => window.location.reload()}>
                 <RefreshCw className="w-3 h-3" />
                 Reset
-             </Button>
-
-             <Button 
-                variant="outline" 
-                size="icon" 
-                className="h-9 w-9"
-                onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-             >
-                <Sun className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-                <Moon className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-                <span className="sr-only">Toggle theme</span>
              </Button>
         </div>
       </header>
