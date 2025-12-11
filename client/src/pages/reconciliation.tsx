@@ -148,7 +148,7 @@ const SuggestedMatchRow = ({
                <Badge variant="secondary" className="text-xs h-5 px-1.5 font-mono font-bold bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
                  {remittance.reference}
                </Badge>
-               <span className="text-[10px] font-mono text-muted-foreground/40">{remittance.orderNumber}</span>
+               <span className="text-xs font-mono text-muted-foreground/40">{remittance.orderNumber}</span>
                <MatchStatsDisplay stats={stats} />
             </div>
             <span className="text-sm font-medium opacity-90">{remittance.client}</span>
@@ -270,7 +270,7 @@ const MatchedGroupRow = ({
                  <Badge variant="secondary" className="text-[11px] h-5 px-1.5 font-mono font-semibold bg-pink-50/50 text-pink-700/70 border-pink-200/50 dark:bg-pink-900/10 dark:text-pink-400/70 dark:border-pink-800/50">
                    {remittance.reference}
                  </Badge>
-                 <span className="text-[10px] font-mono text-muted-foreground/40">{remittance.orderNumber}</span>
+                 <span className="text-xs font-mono text-muted-foreground/40">{remittance.orderNumber}</span>
                  {/* For group view, showing stats on the remittance side is ambiguous if multiple banks match. 
                      We could average them or just show nothing on the Remittance side since the Bank side shows the details. 
                      However, request says "On both bank transactions and remittance records".
