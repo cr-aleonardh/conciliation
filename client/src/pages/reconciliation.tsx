@@ -56,7 +56,7 @@ const calculateMatchStats = (bank: BankTransaction, remit: Remittance) => {
 };
 
 const MatchStatsDisplay = ({ stats }: { stats: { rValue: string, nValue: string, dValue: string, aValue: string } }) => (
-  <div className="flex items-center gap-3 text-[10px] font-mono text-muted-foreground/80 mt-1 select-text">
+  <div className="flex items-center gap-3 text-xs font-mono text-muted-foreground/80 mt-1 select-text">
     <span title="Reference Match"><strong className="text-foreground/70">R:</strong>{stats.rValue}</span>
     <span title="Name Similarity"><strong className="text-foreground/70">N:</strong>{stats.nValue}</span>
     <span title="Date Difference"><strong className="text-foreground/70">D:</strong>{stats.dValue}</span>
