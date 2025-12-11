@@ -18,6 +18,52 @@ type BankSortField = 'date' | 'reference' | 'payee' | 'amount';
 type RemitSortField = 'date' | 'reference' | 'client' | 'amount' | 'orderNumber';
 type SortOrder = 'asc' | 'desc';
 
+// --- Helpers ---
+
+const calculateMatchStats = (bank: BankTransaction, remit: Remittance) => {
+  // R: Reference match indicator (Y/N)
+  const isReferenceMatch = bank.reference.toLowerCase() === remit.reference.toLowerCase() || 
+                           bank.reference.toLowerCase().includes(remit.reference.toLowerCase()) || 
+                           remit.reference.toLowerCase().includes(bank.reference.toLowerCase());
+  const rValue = isReferenceMatch ? 'Y' : 'N';
+
+  // N: Name similarity score (0-100%)
+  // Simple Jaccard similarity implementation for demo
+  const s1 = bank.payee.toLowerCase();
+  const s2 = remit.client.toLowerCase();
+  const set1 = new Set(s1.split(''));
+  const set2 = new Set(s2.split(''));
+  const intersection = new Set(Array.from(set1).filter(x => set2.has(x)));
+  const union = new Set([...Array.from(set1), ...Array.from(set2)]);
+  const similarity = union.size === 0 ? 0 : intersection.size / union.size;
+  const nValue = `${Math.round(similarity * 100)}%`;
+
+  // D: Date difference
+  const d1 = new Date(bank.date);
+  const d2 = new Date(remit.date);
+  const diffTime = d1.getTime() - d2.getTime();
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  // Format to 2 digits with sign
+  const dValue = diffDays >= 0 
+    ? `+${diffDays.toString().padStart(2, '0')}` 
+    : `-${Math.abs(diffDays).toString().padStart(2, '0')}`;
+
+  // A: Amount difference
+  const diffAmount = bank.amount - remit.amount;
+  const aValue = diffAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  
+  return { rValue, nValue, dValue, aValue: diffAmount > 0 ? `+${aValue}` : aValue };
+};
+
+const MatchStatsDisplay = ({ stats }: { stats: { rValue: string, nValue: string, dValue: string, aValue: string } }) => (
+  <div className="flex items-center gap-3 text-[10px] font-mono text-muted-foreground/80 mt-1 select-text">
+    <span title="Reference Match"><strong className="text-foreground/70">R:</strong>{stats.rValue}</span>
+    <span title="Name Similarity"><strong className="text-foreground/70">N:</strong>{stats.nValue}</span>
+    <span title="Date Difference"><strong className="text-foreground/70">D:</strong>{stats.dValue}</span>
+    <span title="Amount Difference"><strong className="text-foreground/70">A:</strong>{stats.aValue}</span>
+  </div>
+);
+
 // --- Components ---
 
 const SortButton = ({ 
@@ -62,6 +108,8 @@ const SuggestedMatchRow = ({
   onApprove: () => void,
   onReject: () => void
 }) => {
+  const stats = calculateMatchStats(bankTransaction, remittance);
+
   return (
     <motion.div 
       layout
@@ -80,11 +128,12 @@ const SuggestedMatchRow = ({
       {/* Left: Bank Transaction */}
       <div className="flex-1 p-3 pr-8 flex items-center justify-between">
          <div className="flex flex-col gap-1">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
                <span className="text-xs font-mono text-muted-foreground">{bankTransaction.date}</span>
                <Badge variant="secondary" className="text-xs h-5 px-1.5 font-mono font-bold bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
                  {bankTransaction.reference}
                </Badge>
+               <MatchStatsDisplay stats={stats} />
             </div>
             <span className="text-sm font-medium opacity-90">{bankTransaction.payee}</span>
          </div>
@@ -94,11 +143,12 @@ const SuggestedMatchRow = ({
       {/* Right: Remittance */}
       <div className="flex-1 p-3 pl-8 flex items-center justify-between">
          <div className="flex flex-col gap-1">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
                <span className="text-xs font-mono text-muted-foreground">{remittance.date}</span>
                <Badge variant="secondary" className="text-xs h-5 px-1.5 font-mono font-bold bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
                  {remittance.reference}
                </Badge>
+               <MatchStatsDisplay stats={stats} />
             </div>
             <span className="text-sm font-medium opacity-90">{remittance.client}</span>
          </div>
@@ -186,36 +236,47 @@ const MatchedGroupRow = ({
 
       {/* Left Side: Bank Transactions Stack */}
       <div className="flex-1 min-w-[400px] border-r border-border/40 p-2 space-y-2">
-        {bankTransactions.map(t => (
-          <div key={t.id} className="flex items-center justify-between p-3 rounded-md bg-muted/20 border border-transparent opacity-70 group-hover:opacity-100 transition-opacity h-[72px]">
-             <div className="flex flex-col gap-1">
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="w-3 h-3 text-match" />
-                  <span className="text-xs font-mono text-muted-foreground">{t.date}</span>
-                  <Badge variant="secondary" className="text-[11px] h-5 px-1.5 font-mono font-semibold bg-blue-50/50 text-blue-700/70 border-blue-200/50 dark:bg-blue-900/10 dark:text-blue-400/70 dark:border-blue-800/50">
-                    {t.reference}
-                  </Badge>
-                </div>
-                <span className="text-sm font-medium text-muted-foreground line-through decoration-muted-foreground/30">
-                  {t.payee}
-                </span>
-             </div>
-             <AmountDisplay amount={t.amount} type="bank" dimmed />
-          </div>
-        ))}
+        {bankTransactions.map(t => {
+           const stats = calculateMatchStats(t, remittance);
+           return (
+            <div key={t.id} className="flex items-center justify-between p-3 rounded-md bg-muted/20 border border-transparent opacity-70 group-hover:opacity-100 transition-opacity h-[72px]">
+               <div className="flex flex-col gap-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <CheckCircle2 className="w-3 h-3 text-match" />
+                    <span className="text-xs font-mono text-muted-foreground">{t.date}</span>
+                    <Badge variant="secondary" className="text-[11px] h-5 px-1.5 font-mono font-semibold bg-blue-50/50 text-blue-700/70 border-blue-200/50 dark:bg-blue-900/10 dark:text-blue-400/70 dark:border-blue-800/50">
+                      {t.reference}
+                    </Badge>
+                    <MatchStatsDisplay stats={stats} />
+                  </div>
+                  <span className="text-sm font-medium text-muted-foreground line-through decoration-muted-foreground/30">
+                    {t.payee}
+                  </span>
+               </div>
+               <AmountDisplay amount={t.amount} type="bank" dimmed />
+            </div>
+           );
+        })}
       </div>
 
       {/* Right Side: Remittance */}
       <div className="flex-1 min-w-[400px] p-2">
         <div className="flex items-center justify-between p-3 rounded-md bg-muted/20 border border-transparent opacity-70 group-hover:opacity-100 transition-opacity h-full">
             <div className="flex flex-col gap-1 w-full">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                  <CheckCircle2 className="w-3 h-3 text-match" />
                  <span className="text-xs font-mono text-muted-foreground">{remittance.date}</span>
                  <Badge variant="secondary" className="text-[11px] h-5 px-1.5 font-mono font-semibold bg-pink-50/50 text-pink-700/70 border-pink-200/50 dark:bg-pink-900/10 dark:text-pink-400/70 dark:border-pink-800/50">
                    {remittance.reference}
                  </Badge>
                  <span className="text-[10px] font-mono text-muted-foreground/40">{remittance.orderNumber}</span>
+                 {/* For group view, showing stats on the remittance side is ambiguous if multiple banks match. 
+                     We could average them or just show nothing on the Remittance side since the Bank side shows the details. 
+                     However, request says "On both bank transactions and remittance records".
+                     If 1-to-1 match, easy. If 1-to-many, we can compare Remit to the "Sum of Banks" or each bank?
+                     Let's show stats against the FIRST bank transaction for simplicity in this mockup or the grouped total if we had logic for it.
+                     Let's iterate and show stats against the first one for now as a representative. */}
+                 {bankTransactions.length > 0 && <MatchStatsDisplay stats={calculateMatchStats(bankTransactions[0], remittance)} />}
               </div>
               <div>
                  <span className="text-sm font-medium text-muted-foreground line-through decoration-muted-foreground/30">
@@ -253,11 +314,13 @@ const GAP = 8; // margin-bottom
 const TransactionRow = ({ 
   data, 
   isSelected, 
-  onClick 
+  onClick,
+  matchStats
 }: { 
   data: BankTransaction, 
   isSelected: boolean, 
-  onClick: () => void 
+  onClick: () => void,
+  matchStats?: { rValue: string, nValue: string, dValue: string, aValue: string }
 }) => {
   const isMatched = data.status === 'matched';
   
@@ -278,7 +341,7 @@ const TransactionRow = ({
       )}
     >
       <div className="flex flex-col gap-1">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           {isMatched && <CheckCircle2 className="w-3 h-3 text-match" />}
           <span className={cn("text-xs font-mono", isMatched ? "text-muted-foreground/50" : "text-muted-foreground")}>{data.date}</span>
           <Badge variant="secondary" className={cn("text-[11px] h-5 px-1.5 font-mono font-bold border", 
@@ -288,6 +351,7 @@ const TransactionRow = ({
           )}>
             {data.reference}
           </Badge>
+          {matchStats && <MatchStatsDisplay stats={matchStats} />}
         </div>
         <span className={cn("text-base font-medium transition-colors", isMatched ? "text-muted-foreground line-through decoration-muted-foreground/30" : "text-foreground group-hover:text-primary")}>
           {data.payee}
@@ -309,13 +373,15 @@ const RemittanceRow = ({
   isSelected, 
   onClick,
   isMultiMatchTarget,
-  matchCount
+  matchCount,
+  matchStats
 }: { 
   data: Remittance, 
   isSelected: boolean, 
   onClick: () => void,
   isMultiMatchTarget: boolean,
-  matchCount: number
+  matchCount: number,
+  matchStats?: { rValue: string, nValue: string, dValue: string, aValue: string }
 }) => {
   const isMatched = data.status === 'matched';
   const matchedCount = data.matchedBankIds?.length || 1;
@@ -353,7 +419,7 @@ const RemittanceRow = ({
 
       <div className="flex flex-col gap-1">
         {/* Top Line: Date | Reference | Order Number */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
            {isMatched && <CheckCircle2 className="w-3 h-3 text-match" />}
            <span className={cn("text-xs font-mono", isMatched ? "text-muted-foreground/50" : "text-muted-foreground")}>{data.date}</span>
            <Badge variant="secondary" className={cn("text-[11px] h-5 px-1.5 font-mono font-bold border", 
@@ -364,6 +430,7 @@ const RemittanceRow = ({
              {data.reference}
            </Badge>
            <span className={cn("text-[10px] font-mono", isMatched ? "text-muted-foreground/40" : "text-muted-foreground/70")}>{data.orderNumber}</span>
+           {matchStats && <MatchStatsDisplay stats={matchStats} />}
         </div>
 
         {/* Bottom Line: Name */}
@@ -825,6 +892,11 @@ export default function ReconciliationPage() {
                       data={t} 
                       isSelected={selectedBankIds.has(t.id)}
                       onClick={() => toggleBankSelection(t.id)}
+                      matchStats={
+                        selectedBankIds.has(t.id) && selectedRemitIds.size > 0
+                        ? calculateMatchStats(t, remittances.find(r => selectedRemitIds.has(r.id))!)
+                        : undefined
+                      }
                     />
                   ))}
                   {filteredBank.length === 0 && (
@@ -888,6 +960,11 @@ export default function ReconciliationPage() {
                       onClick={() => toggleRemitSelection(r.id)}
                       isMultiMatchTarget={selectedRemitIds.has(r.id) && selectedBankIds.size > 1}
                       matchCount={selectedBankIds.size}
+                      matchStats={
+                        selectedRemitIds.has(r.id) && selectedBankIds.size > 0
+                        ? calculateMatchStats(bankTransactions.find(b => selectedBankIds.has(b.id))!, r)
+                        : undefined
+                      }
                     />
                   ))}
                    {filteredRemit.length === 0 && (
