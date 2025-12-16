@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, ArrowRightLeft, X, RefreshCw, Layers, Keyboard, Eye, EyeOff, CheckCircle2, ArrowUpDown, ArrowUp, ArrowDown, Sparkles, Check, ThumbsUp, ThumbsDown, XCircle, History, GripHorizontal, Unlink, Upload } from 'lucide-react';
+import { Search, ArrowRightLeft, X, RefreshCw, Layers, Keyboard, Eye, EyeOff, CheckCircle2, ArrowUpDown, ArrowUp, ArrowDown, Sparkles, Check, ThumbsUp, ThumbsDown, XCircle, History, GripHorizontal, Unlink, Upload, DownloadCloud } from 'lucide-react';
 import { generateMockData, BankTransaction, Remittance } from '../lib/mockData';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -488,6 +488,36 @@ export default function ReconciliationPage() {
   const [suggestionsHeight, setSuggestionsHeight] = useState(350);
   const [isResizingSuggestions, setIsResizingSuggestions] = useState(false);
 
+  // Fetch Data Button State
+  const [fetchDataCooldown, setFetchDataCooldown] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (fetchDataCooldown === null) return;
+
+    if (fetchDataCooldown <= 0) {
+      setFetchDataCooldown(null);
+      return;
+    }
+
+    const timer = setInterval(() => {
+      setFetchDataCooldown(prev => (prev !== null && prev > 0 ? prev - 1 : null));
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [fetchDataCooldown]);
+
+  const handleFetchData = () => {
+    // Start 10 minute cooldown (600 seconds)
+    setFetchDataCooldown(600);
+    // Logic to actually fetch data would go here
+  };
+
+  const formatCooldown = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
   useEffect(() => {
     if (!isResizingSuggestions) return;
 
@@ -935,14 +965,35 @@ export default function ReconciliationPage() {
           <div className="h-12 border-b border-border/40 flex items-center px-4 gap-2 bg-background/50">
              <div className="w-2 h-2 rounded-full bg-remit shadow-[0_0_8px_var(--color-remit)]" />
              <span className="text-sm font-semibold text-remit uppercase tracking-wider whitespace-nowrap">Remittances</span>
-             <div className="ml-auto relative w-48">
-                <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
-                <Input 
-                  className="h-7 text-xs pl-7 bg-muted/30 border-transparent focus:bg-background" 
-                  placeholder="Filter remittances..." 
-                  value={remitFilter}
-                  onChange={(e) => setRemitFilter(e.target.value)}
-                />
+             <div className="ml-auto flex items-center gap-2">
+                <Button 
+                  size="sm" 
+                  variant={fetchDataCooldown !== null ? "secondary" : "outline"}
+                  className={cn(
+                    "h-7 text-xs gap-2 min-w-[100px] transition-all duration-300",
+                    fetchDataCooldown !== null && "text-muted-foreground bg-muted cursor-not-allowed"
+                  )}
+                  onClick={handleFetchData}
+                  disabled={fetchDataCooldown !== null}
+                >
+                  {fetchDataCooldown !== null ? (
+                    <span className="font-mono">{formatCooldown(fetchDataCooldown)}</span>
+                  ) : (
+                    <>
+                      <DownloadCloud className="w-3 h-3" />
+                      FETCH DATA
+                    </>
+                  )}
+                </Button>
+                <div className="relative w-48">
+                  <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
+                  <Input 
+                    className="h-7 text-xs pl-7 bg-muted/30 border-transparent focus:bg-background" 
+                    placeholder="Filter remittances..." 
+                    value={remitFilter}
+                    onChange={(e) => setRemitFilter(e.target.value)}
+                  />
+                </div>
              </div>
           </div>
 
