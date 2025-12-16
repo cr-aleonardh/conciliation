@@ -750,6 +750,31 @@ export default function ReconciliationPage() {
               <span>Unmatched Remit: <span className="text-foreground font-mono">{filteredRemit.length}</span></span>
             </div>
           </div>
+          <div className="flex items-center gap-2 ml-4 border-l pl-4 border-border/40">
+             <Button size="sm" variant="outline" className="h-8 text-xs gap-2">
+                <Upload className="w-3.5 h-3.5" />
+                Upload File
+             </Button>
+             <Button 
+                size="sm" 
+                variant={fetchDataCooldown !== null ? "secondary" : "outline"}
+                className={cn(
+                  "h-8 text-xs gap-2 min-w-[110px] transition-all duration-300",
+                  fetchDataCooldown !== null && "text-muted-foreground bg-muted cursor-not-allowed"
+                )}
+                onClick={handleFetchData}
+                disabled={fetchDataCooldown !== null}
+              >
+                {fetchDataCooldown !== null ? (
+                  <span className="font-mono">{formatCooldown(fetchDataCooldown)}</span>
+                ) : (
+                  <>
+                    <DownloadCloud className="w-3.5 h-3.5" />
+                    FETCH DATA
+                  </>
+                )}
+             </Button>
+          </div>
         </div>
 
         <div className="flex items-center gap-4">
@@ -895,10 +920,6 @@ export default function ReconciliationPage() {
              <div className="w-2 h-2 rounded-full bg-bank shadow-[0_0_8px_var(--color-bank)]" />
              <span className="text-sm font-semibold text-bank uppercase tracking-wider whitespace-nowrap">Bank Transactions</span>
              <div className="ml-auto flex items-center gap-2">
-                <Button size="sm" variant="outline" className="h-7 text-xs gap-2">
-                  <Upload className="w-3 h-3" />
-                  Upload File
-                </Button>
                 <div className="relative w-48">
                   <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
                   <Input 
@@ -966,25 +987,6 @@ export default function ReconciliationPage() {
              <div className="w-2 h-2 rounded-full bg-remit shadow-[0_0_8px_var(--color-remit)]" />
              <span className="text-sm font-semibold text-remit uppercase tracking-wider whitespace-nowrap">Remittances</span>
              <div className="ml-auto flex items-center gap-2">
-                <Button 
-                  size="sm" 
-                  variant={fetchDataCooldown !== null ? "secondary" : "outline"}
-                  className={cn(
-                    "h-7 text-xs gap-2 min-w-[100px] transition-all duration-300",
-                    fetchDataCooldown !== null && "text-muted-foreground bg-muted cursor-not-allowed"
-                  )}
-                  onClick={handleFetchData}
-                  disabled={fetchDataCooldown !== null}
-                >
-                  {fetchDataCooldown !== null ? (
-                    <span className="font-mono">{formatCooldown(fetchDataCooldown)}</span>
-                  ) : (
-                    <>
-                      <DownloadCloud className="w-3 h-3" />
-                      FETCH DATA
-                    </>
-                  )}
-                </Button>
                 <div className="relative w-48">
                   <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
                   <Input 
