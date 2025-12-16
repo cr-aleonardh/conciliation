@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, ArrowRightLeft, X, RefreshCw, Layers, Keyboard, Eye, EyeOff, CheckCircle2, ArrowUpDown, ArrowUp, ArrowDown, Sparkles, Check, ThumbsUp, ThumbsDown, XCircle, History, GripHorizontal, Unlink } from 'lucide-react';
+import { Search, ArrowRightLeft, X, RefreshCw, Layers, Keyboard, Eye, EyeOff, CheckCircle2, ArrowUpDown, ArrowUp, ArrowDown, Sparkles, Check, ThumbsUp, ThumbsDown, XCircle, History, GripHorizontal, Unlink, Upload } from 'lucide-react';
 import { generateMockData, BankTransaction, Remittance } from '../lib/mockData';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -864,14 +864,20 @@ export default function ReconciliationPage() {
           <div className="h-12 border-b border-border/40 flex items-center px-4 gap-2 bg-background/50">
              <div className="w-2 h-2 rounded-full bg-bank shadow-[0_0_8px_var(--color-bank)]" />
              <span className="text-sm font-semibold text-bank uppercase tracking-wider whitespace-nowrap">Bank Transactions</span>
-             <div className="ml-auto relative w-48">
-                <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
-                <Input 
-                  className="h-7 text-xs pl-7 bg-muted/30 border-transparent focus:bg-background" 
-                  placeholder="Filter transactions..." 
-                  value={bankFilter}
-                  onChange={(e) => setBankFilter(e.target.value)}
-                />
+             <div className="ml-auto flex items-center gap-2">
+                <Button size="sm" variant="outline" className="h-7 text-xs gap-2">
+                  <Upload className="w-3 h-3" />
+                  Upload File
+                </Button>
+                <div className="relative w-48">
+                  <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
+                  <Input 
+                    className="h-7 text-xs pl-7 bg-muted/30 border-transparent focus:bg-background" 
+                    placeholder="Filter transactions..." 
+                    value={bankFilter}
+                    onChange={(e) => setBankFilter(e.target.value)}
+                  />
+                </div>
              </div>
           </div>
 
