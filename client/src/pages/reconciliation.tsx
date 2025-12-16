@@ -753,7 +753,7 @@ export default function ReconciliationPage() {
           <div className="flex items-center gap-2 ml-4 border-l pl-4 border-border/40">
              <Button size="sm" variant="outline" className="h-8 text-xs gap-2">
                 <Upload className="w-3.5 h-3.5" />
-                Upload File
+                UPLOAD BANK FILE
              </Button>
              <Button 
                 size="sm" 
