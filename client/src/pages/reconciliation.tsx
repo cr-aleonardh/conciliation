@@ -871,7 +871,7 @@ export default function ReconciliationPage() {
                <div className="px-6 py-3 flex items-center justify-between shrink-0">
                   <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
                      <Sparkles className="w-4 h-4" />
-                     <span className="text-sm font-semibold">AI Suggestions</span>
+                     <span className="text-sm font-semibold">Suggested Matches</span>
                      <Badge variant="secondary" className="bg-amber-500/10 text-amber-700 hover:bg-amber-500/20 border-0">
                        {suggestedMatches.length} pending
                      </Badge>
