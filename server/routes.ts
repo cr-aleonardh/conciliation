@@ -4,6 +4,7 @@ import { storage } from "./storage";
 import { insertBankTransactionSchema, insertOrderSchema } from "@shared/schema";
 import { z } from "zod";
 import multer from "multer";
+import { processUploadedFile } from "./fileProcessor";
 
 const upload = multer({ storage: multer.memoryStorage() });
 
@@ -210,33 +211,21 @@ export async function registerRoutes(
     }
   });
 
-  // Bank File Upload - Proxy to Python service
+  // Bank File Upload - Process directly in Node.js
   app.post("/api/upload-bank-file", upload.single('file'), async (req, res) => {
     try {
       if (!req.file) {
         return res.status(400).json({ success: false, message: "No file provided" });
       }
 
-      const pythonServiceUrl = process.env.PYTHON_SERVICE_URL || 'http://localhost:5001';
-      
-      // Use Web FormData (available in Node 18+)
-      const formData = new FormData();
-      const blob = new Blob([req.file.buffer], { type: req.file.mimetype });
-      formData.append('file', blob, req.file.originalname);
-
-      const response = await fetch(`${pythonServiceUrl}/upload`, {
-        method: 'POST',
-        body: formData
-      });
-
-      const result = await response.json();
-      res.status(response.status).json(result);
+      const result = await processUploadedFile(req.file.buffer, req.file.originalname);
+      res.status(result.success ? 200 : 400).json(result);
 
     } catch (error: any) {
-      console.error("Error proxying to Python service:", error);
+      console.error("Error processing file:", error);
       res.status(500).json({ 
         success: false, 
-        message: "Error uploading file. Please ensure the upload service is running." 
+        message: `Error processing file: ${error.message}` 
       });
     }
   });
