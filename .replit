@@ -46,3 +46,9 @@ waitForPort = 5000
 
 [agent]
 mockupState = "FULLSTACK"
+
+[userenv]
+
+[userenv.shared]
+PYTHON_SERVICE_URL = "http://localhost:5001"
+PYTHON_SERVICE_PORT = "5001"

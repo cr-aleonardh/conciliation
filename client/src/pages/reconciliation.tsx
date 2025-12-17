@@ -511,6 +511,11 @@ export default function ReconciliationPage() {
   // Fetch Data Button State
   const [fetchDataCooldown, setFetchDataCooldown] = useState<number | null>(null);
 
+  // File Upload State
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadStatus, setUploadStatus] = useState<{ type: 'success' | 'error', message: string } | null>(null);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
   useEffect(() => {
     if (fetchDataCooldown === null) return;
 
@@ -536,6 +541,69 @@ export default function ReconciliationPage() {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    setUploadStatus(null);
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const response = await fetch('/api/upload-bank-file', {
+        method: 'POST',
+        body: formData
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        setUploadStatus({
+          type: 'success',
+          message: result.message
+        });
+        // Refresh bank transactions after successful upload
+        const txResponse = await fetch('/api/bank-transactions');
+        if (txResponse.ok) {
+          const transactions = await txResponse.json();
+          // Transform API data to match frontend interface
+          const transformedTransactions: BankTransaction[] = transactions.map((t: any) => ({
+            id: t.transactionHash,
+            date: t.transactionDate?.split('T')[0] || '',
+            payee: t.payerSender,
+            reference: t.extractedReference || '',
+            amount: parseFloat(t.creditAmount),
+            status: t.reconciliationStatus === 'unmatched' ? 'unmatched' : 
+                   t.reconciliationStatus === 'suggested_match' ? 'suggested' : 'matched'
+          }));
+          setBankTransactions(transformedTransactions);
+        }
+      } else {
+        setUploadStatus({
+          type: 'error',
+          message: result.message
+        });
+      }
+    } catch (error) {
+      setUploadStatus({
+        type: 'error',
+        message: 'Failed to upload file. Please try again.'
+      });
+    } finally {
+      setIsUploading(false);
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleUploadButtonClick = () => {
+    fileInputRef.current?.click();
   };
 
   useEffect(() => {
@@ -770,9 +838,28 @@ export default function ReconciliationPage() {
             </div>
           </div>
           <div className="flex items-center gap-2 ml-4 border-l pl-4 border-border/40">
-             <Button size="sm" variant="outline" className="h-8 text-xs gap-2">
-                <Upload className="w-3.5 h-3.5" />
-                UPLOAD BANK FILE
+             <input
+               type="file"
+               ref={fileInputRef}
+               onChange={handleFileUpload}
+               accept=".csv,.xls,.xlsx"
+               className="hidden"
+               data-testid="input-bank-file"
+             />
+             <Button 
+               size="sm" 
+               variant="outline" 
+               className="h-8 text-xs gap-2"
+               onClick={handleUploadButtonClick}
+               disabled={isUploading}
+               data-testid="button-upload-bank-file"
+             >
+                {isUploading ? (
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Upload className="w-3.5 h-3.5" />
+                )}
+                {isUploading ? 'IMPORTING...' : 'UPLOAD BANK FILE'}
              </Button>
              <Button 
                 size="sm" 
@@ -871,6 +958,40 @@ export default function ReconciliationPage() {
              </AnimatePresence>
         </div>
       </header>
+
+      {/* Upload Status Notification */}
+      <AnimatePresence>
+        {uploadStatus && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className={cn(
+              "mx-4 mt-2 p-3 rounded-md flex items-center justify-between",
+              uploadStatus.type === 'success' 
+                ? "bg-green-500/10 border border-green-500/30 text-green-600 dark:text-green-400"
+                : "bg-destructive/10 border border-destructive/30 text-destructive"
+            )}
+          >
+            <div className="flex items-center gap-2">
+              {uploadStatus.type === 'success' ? (
+                <CheckCircle2 className="w-4 h-4" />
+              ) : (
+                <XCircle className="w-4 h-4" />
+              )}
+              <span className="text-sm">{uploadStatus.message}</span>
+            </div>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="h-6 w-6 p-0"
+              onClick={() => setUploadStatus(null)}
+            >
+              <X className="w-3 h-3" />
+            </Button>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Main Workspace */}
       <div className="flex-1 flex flex-col overflow-hidden relative">
