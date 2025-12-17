@@ -1,59 +1,12 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertBankTransactionSchema, insertOrderSchema, type InsertOrder } from "@shared/schema";
+import { insertBankTransactionSchema, insertOrderSchema } from "@shared/schema";
 import { z } from "zod";
 import multer from "multer";
 import { processUploadedFile } from "./fileProcessor";
-
-const CURIARA_API_BASE = "https://apicuriara.azurewebsites.net";
-const CURIARA_API_USER = process.env.CURIARA_API_USER || "";
-const CURIARA_API_PASSWORD = process.env.CURIARA_API_PASSWORD || "";
-
-function normalizeCustomerName(name: string | null | undefined): string {
-  if (!name) return "";
-  return name
-    .toUpperCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function formatDateForApi(date: Date): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}.${month}.${day}`;
-}
-
-function extractDateOnly(isoString: string): string {
-  const datePart = isoString.split('T')[0];
-  return `${datePart}T00:00:00`;
-}
-
-interface CuriaraOrder {
-  orderId: number;
-  orderBankReference: string | null;
-  amount: number;
-  fee: number;
-  amountTotalFee: number;
-  orderTimestamp: string;
-  orderDate: string;
-  status: string;
-  customerName: string;
-  paymentMethod: string;
-}
-
-interface CuriaraApiResponse {
-  paging: {
-    totalItems: number;
-    totalPages: number;
-    pageNumber: number;
-    pageSize: number;
-  };
-  data: CuriaraOrder[];
-}
+import { spawn } from "child_process";
+import { mapAndValidateOrders } from "./orderMapper";
 
 const upload = multer({ storage: multer.memoryStorage() });
 
@@ -279,95 +232,95 @@ export async function registerRoutes(
     }
   });
 
-  // Fetch Orders from Curiara API
+  // Fetch Orders from Curiara API - calls Python script, then uses storage layer
   app.post("/api/fetch-orders", async (req, res) => {
     try {
-      if (!CURIARA_API_USER || !CURIARA_API_PASSWORD) {
-        return res.status(500).json({ 
-          success: false, 
-          message: "API credentials not configured" 
-        });
-      }
-
-      const today = new Date();
-      const threeDaysAgo = new Date(today);
-      threeDaysAgo.setDate(today.getDate() - 3);
-
-      const startDate = formatDateForApi(threeDaysAgo);
-      const endDate = formatDateForApi(today);
-
-      const authHeader = "Basic " + Buffer.from(`${CURIARA_API_USER}:${CURIARA_API_PASSWORD}`).toString("base64");
-
-      let allOrders: InsertOrder[] = [];
-      let currentPage = 1;
-      let totalPages = 1;
-      let totalFetched = 0;
-      let filteredCount = 0;
-
-      console.log(`Fetching orders from ${startDate} to ${endDate}`);
-
-      while (currentPage <= totalPages) {
-        const url = `${CURIARA_API_BASE}/api/OrderBreakdown?startDate=${startDate}&endDate=${endDate}&pageNumber=${currentPage}`;
-        
-        console.log(`Fetching page ${currentPage}...`);
-        
-        const response = await fetch(url, {
-          method: "GET",
-          headers: {
-            "Authorization": authHeader,
-            "Content-Type": "application/json"
-          }
-        });
-
-        if (!response.ok) {
-          throw new Error(`API returned status ${response.status}: ${await response.text()}`);
-        }
-
-        const data: CuriaraApiResponse = await response.json();
-        totalPages = data.paging.totalPages;
-        totalFetched += data.data.length;
-
-        const filteredOrders = data.data.filter(
-          order => order.paymentMethod === "Transferencia Bancaria"
-        );
-        filteredCount += filteredOrders.length;
-
-        const mappedOrders: InsertOrder[] = filteredOrders.map(order => ({
-          orderId: order.orderId,
-          orderBankReference: order.orderBankReference || null,
-          amount: String(order.amount),
-          fee: String(order.fee),
-          amountTotalFee: String(order.amountTotalFee),
-          orderTimestamp: order.orderTimestamp,
-          orderDate: extractDateOnly(order.orderDate),
-          customerName: normalizeCustomerName(order.customerName),
-          remitecStatus: order.status?.charAt(0) || null,
-          matchReferenceFlag: false,
-          matchNameScore: "0",
-          reconciliationStatus: "unmatched",
-        }));
-
-        allOrders = allOrders.concat(mappedOrders);
-        currentPage++;
-
-        if (currentPage <= totalPages) {
-          await new Promise(resolve => setTimeout(resolve, 200));
-        }
-      }
-
-      const result = await storage.upsertOrders(allOrders);
-
-      console.log(`Fetch complete: ${totalFetched} total orders, ${filteredCount} with bank transfer, ${result.inserted} inserted, ${result.updated} updated`);
-
-      res.json({
-        success: true,
-        message: `Fetched ${totalFetched} orders, filtered to ${filteredCount} bank transfers`,
-        inserted: result.inserted,
-        updated: result.updated,
-        totalPages,
-        dateRange: { startDate, endDate }
+      console.log("Starting Python script to fetch orders...");
+      
+      const pythonProcess = spawn("python3", ["scripts/fetch_orders.py"], {
+        env: process.env,
+        cwd: process.cwd()
       });
-
+      
+      let stdout = "";
+      let stderr = "";
+      
+      pythonProcess.stdout.on("data", (data) => {
+        stdout += data.toString();
+      });
+      
+      pythonProcess.stderr.on("data", (data) => {
+        stderr += data.toString();
+        console.log("Python:", data.toString().trim());
+      });
+      
+      pythonProcess.on("close", async (code) => {
+        if (code !== 0) {
+          console.error("Python script failed with code:", code);
+          console.error("stderr:", stderr);
+          
+          try {
+            const result = JSON.parse(stdout);
+            return res.status(500).json(result);
+          } catch {
+            return res.status(500).json({
+              success: false,
+              message: `Python script failed with code ${code}: ${stderr || stdout}`
+            });
+          }
+        }
+        
+        try {
+          const pythonResult = JSON.parse(stdout);
+          
+          if (!pythonResult.success) {
+            return res.status(500).json(pythonResult);
+          }
+          
+          if (!Array.isArray(pythonResult.orders)) {
+            return res.status(500).json({
+              success: false,
+              message: "Invalid response from fetch script: orders is not an array"
+            });
+          }
+          
+          const { orders: ordersToUpsert, errors: validationErrors } = mapAndValidateOrders(pythonResult.orders);
+          
+          if (validationErrors.length > 0) {
+            console.warn(`Validation issues with ${validationErrors.length} orders:`, validationErrors.slice(0, 5));
+          }
+          
+          const dbResult = await storage.upsertOrders(ordersToUpsert);
+          
+          console.log(`Fetch complete: ${pythonResult.message}, inserted: ${dbResult.inserted}, updated: ${dbResult.updated}`);
+          
+          res.json({
+            success: true,
+            message: pythonResult.message,
+            inserted: dbResult.inserted,
+            updated: dbResult.updated,
+            totalPages: pythonResult.totalPages,
+            dateRange: pythonResult.dateRange
+          });
+          
+        } catch (parseError: any) {
+          console.error("Failed to process Python output:", parseError.message);
+          console.error("stdout:", stdout);
+          res.status(500).json({
+            success: false,
+            message: `Failed to process script output: ${parseError.message}`
+          });
+        }
+      });
+      
+      pythonProcess.on("error", (error) => {
+        console.error("Failed to start Python script:", error);
+        res.status(500).json({
+          success: false,
+          message: `Failed to start Python script: ${error.message}`
+        });
+      });
+      
     } catch (error: any) {
       console.error("Error fetching orders:", error);
       res.status(500).json({ 
