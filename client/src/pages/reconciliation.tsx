@@ -697,9 +697,9 @@ export default function ReconciliationPage() {
           const transformedBank: BankTransaction[] = bankData.map((t: any) => ({
             id: t.transactionHash,
             date: t.transactionDate?.split('T')[0] || '',
-            payee: t.payerName || '',
-            reference: t.reference || '',
-            amount: parseFloat(t.amount) || 0,
+            payee: t.payerSender || '',
+            reference: t.extractedReference || '',
+            amount: parseFloat(t.creditAmount) || 0,
             status: t.reconciliationStatus === 'unmatched' ? 'unmatched' : 
                    t.reconciliationStatus === 'suggested_match' ? 'suggested' : 'matched'
           }));
