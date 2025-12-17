@@ -57,6 +57,7 @@ def fetch_orders_from_api(api_user: str, api_password: str):
     total_pages = 1
     total_fetched = 0
     filtered_count = 0
+    payment_methods_seen = set()
     
     print(f"Fetching orders from {start_date} to {end_date}", file=sys.stderr)
     
@@ -78,6 +79,13 @@ def fetch_orders_from_api(api_user: str, api_password: str):
         data = response.json()
         total_pages = data["paging"]["totalPages"]
         total_fetched += len(data["data"])
+        
+        # Debug: collect unique payment methods
+        for order in data["data"]:
+            pm = order.get("paymentMethod", "N/A")
+            if pm not in payment_methods_seen:
+                payment_methods_seen.add(pm)
+                print(f"Payment method found: {pm}", file=sys.stderr)
         
         filtered_orders = [
             order for order in data["data"]
