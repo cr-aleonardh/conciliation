@@ -685,8 +685,47 @@ export default function ReconciliationPage() {
 
   // Initial Data Load - currently empty, will be connected to API later
   useEffect(() => {
-    setBankTransactions([]);
-    setRemittances([]);
+    const loadInitialData = async () => {
+      try {
+        const [bankResponse, ordersResponse] = await Promise.all([
+          fetch('/api/bank-transactions'),
+          fetch('/api/orders')
+        ]);
+        
+        if (bankResponse.ok) {
+          const bankData = await bankResponse.json();
+          const transformedBank: BankTransaction[] = bankData.map((t: any) => ({
+            id: t.transactionHash,
+            date: t.transactionDate?.split('T')[0] || '',
+            payee: t.payerName || '',
+            reference: t.reference || '',
+            amount: parseFloat(t.amount) || 0,
+            status: t.reconciliationStatus === 'unmatched' ? 'unmatched' : 
+                   t.reconciliationStatus === 'suggested_match' ? 'suggested' : 'matched'
+          }));
+          setBankTransactions(transformedBank);
+        }
+        
+        if (ordersResponse.ok) {
+          const orders = await ordersResponse.json();
+          const transformedRemittances: Remittance[] = orders.map((o: any) => ({
+            id: String(o.orderId),
+            date: o.orderDate?.split('T')[0] || '',
+            customerName: o.customerName || '',
+            reference: o.orderBankReference || '',
+            orderNumber: String(o.orderId),
+            amount: parseFloat(o.amountTotalFee) || 0,
+            status: o.reconciliationStatus === 'unmatched' ? 'unmatched' : 
+                   o.reconciliationStatus === 'suggested_match' ? 'suggested' : 'matched'
+          }));
+          setRemittances(transformedRemittances);
+        }
+      } catch (error) {
+        console.error('Failed to load initial data:', error);
+      }
+    };
+    
+    loadInitialData();
   }, []);
 
   // Filtering & Sorting
