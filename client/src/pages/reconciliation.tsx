@@ -747,7 +747,7 @@ export default function ReconciliationPage() {
             <h1 className="text-lg font-semibold tracking-tight">Reconciliation Cockpit</h1>
             <div className="text-xs text-muted-foreground flex gap-3">
               <span>Unmatched Bank: <span className="text-foreground font-mono">{filteredBank.length}</span></span>
-              <span>Unmatched Remit: <span className="text-foreground font-mono">{filteredRemit.length}</span></span>
+              <span>Unmatched Orders: <span className="text-foreground font-mono">{filteredRemit.length}</span></span>
             </div>
           </div>
           <div className="flex items-center gap-2 ml-4 border-l pl-4 border-border/40">
@@ -990,13 +990,13 @@ export default function ReconciliationPage() {
           {/* Panel Header */}
           <div className="h-12 border-b border-border/40 flex items-center px-4 gap-2 bg-background/50">
              <div className="w-2 h-2 rounded-full bg-remit shadow-[0_0_8px_var(--color-remit)]" />
-             <span className="text-sm font-semibold text-remit uppercase tracking-wider whitespace-nowrap">Remittances</span>
+             <span className="text-sm font-semibold text-remit uppercase tracking-wider whitespace-nowrap">Orders</span>
              <div className="ml-auto flex items-center gap-2">
                 <div className="relative w-48">
                   <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
                   <Input 
                     className="h-7 text-xs pl-7 bg-muted/30 border-transparent focus:bg-background" 
-                    placeholder="Filter remittances..." 
+                    placeholder="Filter orders..." 
                     value={remitFilter}
                     onChange={(e) => setRemitFilter(e.target.value)}
                   />
@@ -1033,7 +1033,7 @@ export default function ReconciliationPage() {
                     />
                   ))}
                    {filteredRemit.length === 0 && (
-                     <div className="text-center py-20 text-muted-foreground text-sm">No unmatched remittances found.</div>
+                     <div className="text-center py-20 text-muted-foreground text-sm">No unmatched orders found.</div>
                   )}
                 </AnimatePresence>
              </div>
