@@ -3,12 +3,108 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertBankTransactionSchema, insertOrderSchema } from "@shared/schema";
 import { z } from "zod";
+import multer from "multer";
+import { spawn } from "child_process";
+import * as fs from "fs";
+import * as path from "path";
+
+const upload = multer({ 
+  dest: 'uploads/',
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const allowedExtensions = ['.csv', '.xls', '.xlsx'];
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (allowedExtensions.includes(ext)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only CSV and Excel files are allowed'));
+    }
+  }
+});
 
 export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
   
+  if (!fs.existsSync('uploads')) {
+    fs.mkdirSync('uploads', { recursive: true });
+  }
+
+  app.post("/api/upload-bank-file", upload.single('file'), async (req, res) => {
+    if (!req.file) {
+      return res.status(400).json({ message: "No file uploaded" });
+    }
+
+    const originalExt = path.extname(req.file.originalname).toLowerCase();
+    const newPath = req.file.path + originalExt;
+    fs.renameSync(req.file.path, newPath);
+
+    try {
+      const pythonProcess = spawn('python', ['scripts/bank_transaction_processor.py', newPath]);
+      
+      let stdout = '';
+      let stderr = '';
+
+      pythonProcess.stdout.on('data', (data) => {
+        stdout += data.toString();
+      });
+
+      pythonProcess.stderr.on('data', (data) => {
+        stderr += data.toString();
+      });
+
+      pythonProcess.on('close', (code) => {
+        fs.unlink(newPath, () => {});
+
+        try {
+          const result = JSON.parse(stdout);
+          if (result.success) {
+            res.json({
+              success: true,
+              message: `Successfully imported ${result.inserted} transactions`,
+              inserted: result.inserted,
+              totalProcessed: result.total_processed,
+              skipped: result.skipped,
+              errors: result.errors
+            });
+          } else {
+            res.status(400).json({
+              success: false,
+              message: result.error || 'Import failed',
+              errors: result.errors
+            });
+          }
+        } catch (parseError) {
+          console.error('Python output:', stdout);
+          console.error('Python stderr:', stderr);
+          res.status(500).json({
+            success: false,
+            message: 'Error processing file',
+            error: stderr || 'Unknown error'
+          });
+        }
+      });
+
+      pythonProcess.on('error', (err) => {
+        fs.unlink(newPath, () => {});
+        res.status(500).json({
+          success: false,
+          message: 'Failed to start processor',
+          error: err.message
+        });
+      });
+
+    } catch (error: any) {
+      fs.unlink(newPath, () => {});
+      res.status(500).json({
+        success: false,
+        message: 'Error processing file',
+        error: error.message
+      });
+    }
+  });
+
   // Bank Transactions Routes
   app.get("/api/bank-transactions", async (req, res) => {
     try {

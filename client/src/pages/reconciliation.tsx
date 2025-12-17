@@ -1,6 +1,7 @@
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, ArrowRightLeft, X, RefreshCw, Layers, Keyboard, Eye, EyeOff, CheckCircle2, ArrowUpDown, ArrowUp, ArrowDown, Sparkles, Check, ThumbsUp, ThumbsDown, XCircle, History, GripHorizontal, Unlink, Upload, DownloadCloud } from 'lucide-react';
+import { Search, ArrowRightLeft, X, RefreshCw, Layers, Keyboard, Eye, EyeOff, CheckCircle2, ArrowUpDown, ArrowUp, ArrowDown, Sparkles, Check, ThumbsUp, ThumbsDown, XCircle, History, GripHorizontal, Unlink, Upload, DownloadCloud, Loader2 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 export interface BankTransaction {
   id: string;
@@ -511,6 +512,70 @@ export default function ReconciliationPage() {
   // Fetch Data Button State
   const [fetchDataCooldown, setFetchDataCooldown] = useState<number | null>(null);
 
+  // File Upload State
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const { toast } = useToast();
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const allowedExtensions = ['.csv', '.xls', '.xlsx'];
+    const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
+    if (!allowedExtensions.includes(ext)) {
+      toast({
+        title: "Invalid file type",
+        description: "Please upload a CSV or Excel file (.csv, .xls, .xlsx)",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsUploading(true);
+    toast({
+      title: "Importing transactions...",
+      description: "Please wait while we process your file."
+    });
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const response = await fetch('/api/upload-bank-file', {
+        method: 'POST',
+        body: formData
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        toast({
+          title: "Import successful",
+          description: `${result.inserted} transactions imported successfully.${result.skipped > 0 ? ` ${result.skipped} duplicates skipped.` : ''}`
+        });
+        // Refresh the transactions list here when connected to API
+      } else {
+        toast({
+          title: "Import failed",
+          description: result.message || "Failed to import transactions",
+          variant: "destructive"
+        });
+      }
+    } catch (error: any) {
+      toast({
+        title: "Upload error",
+        description: error.message || "Failed to upload file",
+        variant: "destructive"
+      });
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
   useEffect(() => {
     if (fetchDataCooldown === null) return;
 
@@ -770,9 +835,33 @@ export default function ReconciliationPage() {
             </div>
           </div>
           <div className="flex items-center gap-2 ml-4 border-l pl-4 border-border/40">
-             <Button size="sm" variant="outline" className="h-8 text-xs gap-2">
-                <Upload className="w-3.5 h-3.5" />
-                UPLOAD BANK FILE
+             <input
+               type="file"
+               ref={fileInputRef}
+               onChange={handleFileUpload}
+               accept=".csv,.xls,.xlsx"
+               className="hidden"
+               data-testid="input-file-upload"
+             />
+             <Button 
+               size="sm" 
+               variant="outline" 
+               className="h-8 text-xs gap-2"
+               onClick={() => fileInputRef.current?.click()}
+               disabled={isUploading}
+               data-testid="button-upload-bank-file"
+             >
+                {isUploading ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    IMPORTING...
+                  </>
+                ) : (
+                  <>
+                    <Upload className="w-3.5 h-3.5" />
+                    UPLOAD BANK FILE
+                  </>
+                )}
              </Button>
              <Button 
                 size="sm" 
