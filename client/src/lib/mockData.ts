@@ -62,7 +62,7 @@ export const generateMockData = () => {
       date: new Date(2024, 0, Math.floor(Math.random() * 30) + 1).toISOString().split('T')[0],
       reference: generateReference(),
       client: clients[Math.floor(Math.random() * clients.length)],
-      orderNumber: `ORD-${Math.floor(Math.random() * 10000000).toString().padStart(7, '0')}`,
+      orderNumber: `${Math.floor(Math.random() * 10000000).toString().padStart(7, '0')}`,
       amount: amount,
       status: 'unmatched'
     });
@@ -91,7 +91,7 @@ export const generateMockData = () => {
        amount,
        client: `Suggested Client ${i}`,
        reference: generateReference(),
-       orderNumber: `ORD-${i.toString().padStart(7, '0')}`,
+       orderNumber: `${i.toString().padStart(7, '0')}`,
        status: 'suggested',
        suggestedMatchId: bankTx.id
      };
