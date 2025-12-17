@@ -978,9 +978,6 @@ export default function ReconciliationPage() {
 
         {/* Center Divider / Action Zone (Visual Only) */}
         <div className="w-[1px] bg-border relative z-10 hidden md:block">
-           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-card border border-border flex items-center justify-center shadow-lg">
-             <ArrowRightLeft className="w-3 h-3 text-muted-foreground" />
-           </div>
         </div>
 
 
