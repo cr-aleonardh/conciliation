@@ -1,7 +1,27 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, ArrowRightLeft, X, RefreshCw, Layers, Keyboard, Eye, EyeOff, CheckCircle2, ArrowUpDown, ArrowUp, ArrowDown, Sparkles, Check, ThumbsUp, ThumbsDown, XCircle, History, GripHorizontal, Unlink, Upload, DownloadCloud } from 'lucide-react';
-import { generateMockData, BankTransaction, Remittance } from '../lib/mockData';
+
+export interface BankTransaction {
+  id: string;
+  date: string;
+  payee: string;
+  reference: string;
+  amount: number;
+  status: 'unmatched' | 'matched' | 'suggested';
+}
+
+export interface Remittance {
+  id: string;
+  date: string;
+  reference: string;
+  client: string;
+  orderNumber: string;
+  amount: number;
+  status: 'unmatched' | 'matched' | 'suggested';
+  matchedBankIds?: string[];
+  suggestedMatchId?: string;
+}
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -544,11 +564,10 @@ export default function ReconciliationPage() {
     };
   }, [isResizingSuggestions]);
 
-  // Initial Data Load
+  // Initial Data Load - currently empty, will be connected to API later
   useEffect(() => {
-    const { bankTransactions: b, remittances: r } = generateMockData();
-    setBankTransactions(b);
-    setRemittances(r);
+    setBankTransactions([]);
+    setRemittances([]);
   }, []);
 
   // Filtering & Sorting
