@@ -10,7 +10,9 @@ const COLUMN_MAPPING: Record<string, string> = {
   'bookingdate': 'date',
   'valuedate': 'date',
   'payername': 'payerName',
+  'payeesender': 'payerName',
   'payer': 'payerName',
+  'sender': 'payerName',
   'name': 'payerName',
   'payernaam': 'payerName',
   'description': 'description',
@@ -149,9 +151,38 @@ export async function processUploadedFile(buffer: Buffer, filename: string): Pro
       const workbook = XLSX.read(buffer, { type: 'buffer' });
       const sheetName = workbook.SheetNames[0];
       const sheet = workbook.Sheets[sheetName];
-      rows = XLSX.utils.sheet_to_json(sheet);
-      if (rows.length > 0) {
-        headers = Object.keys(rows[0]);
+      
+      const allRows: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+      
+      let headerRowIndex = -1;
+      for (let i = 0; i < Math.min(allRows.length, 20); i++) {
+        const row = allRows[i];
+        if (!row) continue;
+        const rowValues = row.map((v: any) => normalizeColumnName(String(v || '')));
+        if (rowValues.includes('date') || rowValues.includes('datum')) {
+          headerRowIndex = i;
+          break;
+        }
+      }
+      
+      if (headerRowIndex === -1) {
+        return { success: false, message: 'Could not find transaction headers in file' };
+      }
+      
+      headers = allRows[headerRowIndex].map((h: any) => String(h || '').trim());
+      
+      for (let i = headerRowIndex + 1; i < allRows.length; i++) {
+        const rowData = allRows[i];
+        if (!rowData || rowData.every((cell: any) => cell === null || cell === undefined || cell === '')) {
+          continue;
+        }
+        const rowObj: Record<string, any> = {};
+        headers.forEach((header, idx) => {
+          if (header) {
+            rowObj[header] = rowData[idx];
+          }
+        });
+        rows.push(rowObj);
       }
     } else {
       return { success: false, message: `Unsupported file format: ${ext}` };
