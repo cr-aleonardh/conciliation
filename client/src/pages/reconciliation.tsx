@@ -1055,7 +1055,17 @@ export default function ReconciliationPage() {
                          <History className="w-3 h-3" />
                          Matched History
                        </span>
-                       <span className="text-xs text-muted-foreground">{matchedGroups.length} groups</span>
+                       <div className="flex items-center gap-3">
+                         {matchedGroups.length > 0 && (
+                            <Button 
+                              size="sm" 
+                              className="h-5 text-[10px] px-2 font-bold tracking-wider"
+                            >
+                               RECONCILE
+                            </Button>
+                         )}
+                         <span className="text-xs text-muted-foreground">{matchedGroups.length} groups</span>
+                       </div>
                     </div>
                     
                     <div className="flex-1 overflow-y-auto p-4 scroll-smooth">
