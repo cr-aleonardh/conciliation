@@ -778,6 +778,10 @@ export default function ReconciliationPage() {
                 <Sparkles className="w-3.5 h-3.5" />
                 AUTOMATE SUGGESTIONS
              </Button>
+             <Button size="sm" variant="outline" className="h-8 text-xs gap-2">
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                RECONCILED
+             </Button>
           </div>
         </div>
 
