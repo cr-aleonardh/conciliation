@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, numeric, timestamp, boolean, integer } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, numeric, timestamp, boolean, integer, char } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -29,6 +29,7 @@ export const orders = pgTable("orders", {
   orderTimestamp: timestamp("order_timestamp", { mode: 'string' }).notNull(),
   orderDate: timestamp("order_date", { mode: 'string' }).notNull(),
   customerName: text("customer_name").notNull(),
+  remitecStatus: char("remitec_status", { length: 1 }),
   matchReferenceFlag: boolean("match_reference_flag").notNull().default(false),
   matchNameScore: numeric("match_name_score", { precision: 5, scale: 2 }).notNull().default('0'),
   diffDays: integer("diff_days"),
