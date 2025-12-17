@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, ArrowRightLeft, X, RefreshCw, Layers, Keyboard, Eye, EyeOff, CheckCircle2, ArrowUpDown, ArrowUp, ArrowDown, Sparkles, Check, ThumbsUp, ThumbsDown, XCircle, History, GripHorizontal, Unlink, Upload, DownloadCloud } from 'lucide-react';
+import { Search, ArrowRightLeft, X, RefreshCw, Layers, Keyboard, Eye, EyeOff, CheckCircle2, ArrowUpDown, ArrowUp, ArrowDown, Sparkles, Check, ThumbsUp, ThumbsDown, XCircle, History, GripHorizontal, Unlink, Upload, DownloadCloud, Loader2 } from 'lucide-react';
 
 export interface BankTransaction {
   id: string;
@@ -511,6 +511,75 @@ export default function ReconciliationPage() {
   // Fetch Data Button State
   const [fetchDataCooldown, setFetchDataCooldown] = useState<number | null>(null);
 
+  // File Upload State
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadStatus, setUploadStatus] = useState<{ success: boolean; message: string } | null>(null);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const validTypes = ['.csv', '.xls', '.xlsx'];
+    const fileExt = file.name.toLowerCase().slice(file.name.lastIndexOf('.'));
+    if (!validTypes.includes(fileExt)) {
+      setUploadStatus({ success: false, message: 'Please upload a CSV or Excel file' });
+      return;
+    }
+
+    setIsUploading(true);
+    setUploadStatus(null);
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const response = await fetch('/api/upload-bank-file', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        setUploadStatus({ 
+          success: true, 
+          message: `Imported ${result.inserted} transactions (${result.duplicates} duplicates skipped)` 
+        });
+        fetchBankTransactions();
+      } else {
+        setUploadStatus({ success: false, message: result.error || 'Upload failed' });
+      }
+    } catch (error: any) {
+      setUploadStatus({ success: false, message: error.message || 'Upload failed' });
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const fetchBankTransactions = async () => {
+    try {
+      const response = await fetch('/api/bank-transactions');
+      const data = await response.json();
+      const mapped = data.map((t: any) => ({
+        id: t.transactionHash,
+        date: t.transactionDate?.split('T')[0] || '',
+        payee: t.payerSender || '',
+        reference: t.extractedReference || '',
+        amount: parseFloat(t.creditAmount) || 0,
+        status: t.reconciliationStatus === 'reconciled' ? 'matched' : 
+                t.reconciliationStatus === 'temporarily_matched' ? 'matched' :
+                t.reconciliationStatus === 'suggested_match' ? 'suggested' : 'unmatched'
+      }));
+      setBankTransactions(mapped);
+    } catch (error) {
+      console.error('Failed to fetch bank transactions:', error);
+    }
+  };
+
   useEffect(() => {
     if (fetchDataCooldown === null) return;
 
@@ -564,9 +633,9 @@ export default function ReconciliationPage() {
     };
   }, [isResizingSuggestions]);
 
-  // Initial Data Load - currently empty, will be connected to API later
+  // Initial Data Load
   useEffect(() => {
-    setBankTransactions([]);
+    fetchBankTransactions();
     setRemittances([]);
   }, []);
 
@@ -770,10 +839,37 @@ export default function ReconciliationPage() {
             </div>
           </div>
           <div className="flex items-center gap-2 ml-4 border-l pl-4 border-border/40">
-             <Button size="sm" variant="outline" className="h-8 text-xs gap-2">
-                <Upload className="w-3.5 h-3.5" />
-                UPLOAD BANK FILE
+             <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileUpload}
+                accept=".csv,.xls,.xlsx"
+                className="hidden"
+                data-testid="input-bank-file"
+             />
+             <Button 
+                size="sm" 
+                variant="outline" 
+                className="h-8 text-xs gap-2"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isUploading}
+                data-testid="button-upload-bank-file"
+             >
+                {isUploading ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Upload className="w-3.5 h-3.5" />
+                )}
+                {isUploading ? 'UPLOADING...' : 'UPLOAD BANK FILE'}
              </Button>
+             {uploadStatus && (
+               <div className={cn(
+                 "text-xs px-2 py-1 rounded",
+                 uploadStatus.success ? "bg-green-500/10 text-green-500" : "bg-destructive/10 text-destructive"
+               )} data-testid="text-upload-status">
+                 {uploadStatus.message}
+               </div>
+             )}
              <Button 
                 size="sm" 
                 variant={fetchDataCooldown !== null ? "secondary" : "outline"}

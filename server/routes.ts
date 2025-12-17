@@ -3,6 +3,16 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertBankTransactionSchema, insertOrderSchema } from "@shared/schema";
 import { z } from "zod";
+import multer from "multer";
+import fs from "fs";
+import os from "os";
+import path from "path";
+
+const uploadDir = path.join(os.tmpdir(), 'bank_uploads');
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+const upload = multer({ dest: uploadDir });
 
 export async function registerRoutes(
   httpServer: Server,
@@ -204,6 +214,58 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Validation error", errors: error.errors });
       }
       res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/upload-bank-file", upload.single('file'), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ success: false, error: "No file provided" });
+      }
+
+      const { spawn } = await import('child_process');
+      
+      const originalName = req.file.originalname.toLowerCase();
+      let fileType = 'csv';
+      if (originalName.endsWith('.xls') || originalName.endsWith('.xlsx')) {
+        fileType = 'excel';
+      }
+      
+      const pythonScript = path.join(process.cwd(), 'python_services', 'process_bank_file.py');
+      
+      const pythonProcess = spawn('python', [pythonScript, req.file.path, fileType]);
+      
+      let stdout = '';
+      let stderr = '';
+      
+      pythonProcess.stdout.on('data', (data: Buffer) => {
+        stdout += data.toString();
+      });
+      
+      pythonProcess.stderr.on('data', (data: Buffer) => {
+        stderr += data.toString();
+      });
+      
+      pythonProcess.on('close', (code: number) => {
+        try {
+          fs.unlinkSync(req.file!.path);
+        } catch (e) {}
+        
+        if (code !== 0) {
+          console.error('Python script error:', stderr);
+          return res.status(500).json({ success: false, error: stderr || 'Failed to process file' });
+        }
+        
+        try {
+          const result = JSON.parse(stdout);
+          res.json(result);
+        } catch (e) {
+          res.status(500).json({ success: false, error: 'Failed to parse Python output' });
+        }
+      });
+      
+    } catch (error: any) {
+      res.status(500).json({ success: false, error: error.message });
     }
   });
 
