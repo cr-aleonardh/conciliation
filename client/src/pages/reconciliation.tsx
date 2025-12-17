@@ -850,11 +850,6 @@ export default function ReconciliationPage() {
                 </motion.div>
               )}
              </AnimatePresence>
-
-             <Button variant="outline" size="sm" className="gap-2" onClick={() => window.location.reload()}>
-                <RefreshCw className="w-3 h-3" />
-                Reset
-             </Button>
         </div>
       </header>
 
