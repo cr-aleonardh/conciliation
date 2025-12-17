@@ -516,6 +516,10 @@ export default function ReconciliationPage() {
   const [uploadStatus, setUploadStatus] = useState<{ type: 'success' | 'error', message: string } | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
+  // Fetch Orders State
+  const [isFetchingOrders, setIsFetchingOrders] = useState(false);
+  const [fetchStatus, setFetchStatus] = useState<{ type: 'success' | 'error', message: string } | null>(null);
+
   useEffect(() => {
     if (fetchDataCooldown === null) return;
 
@@ -531,10 +535,56 @@ export default function ReconciliationPage() {
     return () => clearInterval(timer);
   }, [fetchDataCooldown]);
 
-  const handleFetchData = () => {
-    // Start 10 minute cooldown (600 seconds)
-    setFetchDataCooldown(600);
-    // Logic to actually fetch data would go here
+  const handleFetchData = async () => {
+    if (isFetchingOrders) return;
+    
+    setIsFetchingOrders(true);
+    setFetchStatus(null);
+    
+    try {
+      const response = await fetch('/api/fetch-orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        setFetchStatus({
+          type: 'success',
+          message: `${result.message}. Inserted: ${result.inserted}, Updated: ${result.updated}`
+        });
+        // Start cooldown after successful fetch
+        setFetchDataCooldown(600);
+        // Refresh orders after successful fetch
+        const ordersResponse = await fetch('/api/orders');
+        if (ordersResponse.ok) {
+          const orders = await ordersResponse.json();
+          const transformedRemittances: Remittance[] = orders.map((o: any) => ({
+            id: String(o.orderId),
+            date: o.orderDate?.split('T')[0] || '',
+            name: o.customerName,
+            reference: o.orderBankReference || '',
+            amount: parseFloat(o.amountTotalFee),
+            status: o.reconciliationStatus === 'unmatched' ? 'unmatched' : 
+                   o.reconciliationStatus === 'suggested_match' ? 'suggested' : 'matched'
+          }));
+          setRemittances(transformedRemittances);
+        }
+      } else {
+        setFetchStatus({
+          type: 'error',
+          message: result.message || 'Failed to fetch orders'
+        });
+      }
+    } catch (error) {
+      setFetchStatus({
+        type: 'error',
+        message: 'Failed to fetch orders. Please try again.'
+      });
+    } finally {
+      setIsFetchingOrders(false);
+    }
   };
 
   const formatCooldown = (seconds: number) => {
@@ -863,15 +913,21 @@ export default function ReconciliationPage() {
              </Button>
              <Button 
                 size="sm" 
-                variant={fetchDataCooldown !== null ? "secondary" : "outline"}
+                variant={fetchDataCooldown !== null || isFetchingOrders ? "secondary" : "outline"}
                 className={cn(
-                  "h-8 text-xs gap-2 min-w-[110px] transition-all duration-300",
-                  fetchDataCooldown !== null && "text-muted-foreground bg-muted cursor-not-allowed"
+                  "h-8 text-xs gap-2 min-w-[150px] transition-all duration-300",
+                  (fetchDataCooldown !== null || isFetchingOrders) && "text-muted-foreground bg-muted cursor-not-allowed"
                 )}
                 onClick={handleFetchData}
-                disabled={fetchDataCooldown !== null}
+                disabled={fetchDataCooldown !== null || isFetchingOrders}
+                data-testid="button-fetch-orders"
               >
-                {fetchDataCooldown !== null ? (
+                {isFetchingOrders ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    FETCHING...
+                  </>
+                ) : fetchDataCooldown !== null ? (
                   <span className="font-mono">{formatCooldown(fetchDataCooldown)}</span>
                 ) : (
                   <>
@@ -986,6 +1042,40 @@ export default function ReconciliationPage() {
               size="sm" 
               className="h-6 w-6 p-0"
               onClick={() => setUploadStatus(null)}
+            >
+              <X className="w-3 h-3" />
+            </Button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Fetch Orders Status Notification */}
+      <AnimatePresence>
+        {fetchStatus && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className={cn(
+              "mx-4 mt-2 p-3 rounded-md flex items-center justify-between",
+              fetchStatus.type === 'success' 
+                ? "bg-blue-500/10 border border-blue-500/30 text-blue-600 dark:text-blue-400"
+                : "bg-destructive/10 border border-destructive/30 text-destructive"
+            )}
+          >
+            <div className="flex items-center gap-2">
+              {fetchStatus.type === 'success' ? (
+                <DownloadCloud className="w-4 h-4" />
+              ) : (
+                <XCircle className="w-4 h-4" />
+              )}
+              <span className="text-sm">{fetchStatus.message}</span>
+            </div>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="h-6 w-6 p-0"
+              onClick={() => setFetchStatus(null)}
             >
               <X className="w-3 h-3" />
             </Button>

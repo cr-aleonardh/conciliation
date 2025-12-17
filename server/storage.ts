@@ -21,8 +21,10 @@ export interface IStorage {
   // Orders
   getOrders(): Promise<Order[]>;
   getOrderById(id: number): Promise<Order | undefined>;
+  getExistingOrderIds(orderIds: number[]): Promise<number[]>;
   createOrder(order: InsertOrder): Promise<Order>;
   createOrders(orders: InsertOrder[]): Promise<Order[]>;
+  upsertOrders(orders: InsertOrder[]): Promise<{ inserted: number; updated: number }>;
   updateOrder(id: number, data: Partial<InsertOrder>): Promise<Order | undefined>;
   deleteOrder(id: number): Promise<void>;
 
@@ -84,6 +86,47 @@ export class DatabaseStorage implements IStorage {
   async createOrders(ordersList: InsertOrder[]): Promise<Order[]> {
     if (ordersList.length === 0) return [];
     return await db.insert(orders).values(ordersList).returning();
+  }
+
+  async getExistingOrderIds(orderIds: number[]): Promise<number[]> {
+    if (orderIds.length === 0) return [];
+    const results = await db
+      .select({ orderId: orders.orderId })
+      .from(orders)
+      .where(inArray(orders.orderId, orderIds));
+    return results.map(r => r.orderId);
+  }
+
+  async upsertOrders(ordersList: InsertOrder[]): Promise<{ inserted: number; updated: number }> {
+    if (ordersList.length === 0) return { inserted: 0, updated: 0 };
+    
+    const orderIds = ordersList.map(o => o.orderId);
+    const existingIds = new Set(await this.getExistingOrderIds(orderIds));
+    
+    const toInsert = ordersList.filter(o => !existingIds.has(o.orderId));
+    const toUpdate = ordersList.filter(o => existingIds.has(o.orderId));
+    
+    if (toInsert.length > 0) {
+      await db.insert(orders).values(toInsert);
+    }
+    
+    for (const order of toUpdate) {
+      await db
+        .update(orders)
+        .set({
+          orderBankReference: order.orderBankReference,
+          amount: order.amount,
+          fee: order.fee,
+          amountTotalFee: order.amountTotalFee,
+          orderTimestamp: order.orderTimestamp,
+          orderDate: order.orderDate,
+          customerName: order.customerName,
+          remitecStatus: order.remitecStatus,
+        })
+        .where(eq(orders.orderId, order.orderId));
+    }
+    
+    return { inserted: toInsert.length, updated: toUpdate.length };
   }
 
   async updateOrder(id: number, data: Partial<InsertOrder>): Promise<Order | undefined> {
