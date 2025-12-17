@@ -15,7 +15,7 @@ export interface Remittance {
   id: string;
   date: string;
   reference: string;
-  client: string;
+  customerName: string;
   orderNumber: string;
   amount: number;
   status: 'unmatched' | 'matched' | 'suggested';
@@ -50,7 +50,7 @@ const calculateMatchStats = (bank: BankTransaction, remit: Remittance) => {
   // N: Name similarity score (0-100%)
   // Simple Jaccard similarity implementation for demo
   const s1 = bank.payee.toLowerCase();
-  const s2 = remit.client.toLowerCase();
+  const s2 = remit.customerName.toLowerCase();
   const set1 = new Set(s1.split(''));
   const set2 = new Set(s2.split(''));
   const intersection = new Set(Array.from(set1).filter(x => set2.has(x)));
@@ -171,7 +171,7 @@ const SuggestedMatchRow = ({
                <span className="text-xs font-mono text-muted-foreground/40">{remittance.orderNumber}</span>
                <MatchStatsDisplay stats={stats} />
             </div>
-            <span className="text-sm font-medium opacity-90">{remittance.client}</span>
+            <span className="text-sm font-medium opacity-90">{remittance.customerName}</span>
          </div>
          <AmountDisplay amount={remittance.amount} type="remit" />
       </div>
@@ -301,7 +301,7 @@ const MatchedGroupRow = ({
               </div>
               <div>
                  <span className="text-sm font-medium text-muted-foreground line-through decoration-muted-foreground/30">
-                   {remittance.client}
+                   {remittance.customerName}
                  </span>
               </div>
               {bankTransactions.length > 1 && (
@@ -457,7 +457,7 @@ const RemittanceRow = ({
         {/* Bottom Line: Name */}
         <div>
            <span className={cn("text-base font-medium transition-colors", isMatched ? "text-muted-foreground line-through decoration-muted-foreground/30" : "text-foreground group-hover:text-secondary")}>
-             {data.client}
+             {data.customerName}
            </span>
         </div>
 
@@ -714,7 +714,7 @@ export default function ReconciliationPage() {
   const filteredRemit = useMemo(() => 
     remittances.filter(r => 
       (showMatched || (r.status !== 'matched' && r.status !== 'suggested')) &&
-      (r.client.toLowerCase().includes(remitFilter.toLowerCase()) || 
+      (r.customerName.toLowerCase().includes(remitFilter.toLowerCase()) || 
        r.amount.toString().includes(remitFilter) ||
        r.reference.toLowerCase().includes(remitFilter.toLowerCase()))
     ).sort((a, b) => {
@@ -726,7 +726,7 @@ export default function ReconciliationPage() {
        switch (remitSort.field) {
          case 'date': comparison = a.date.localeCompare(b.date); break;
          case 'amount': comparison = a.amount - b.amount; break;
-         case 'client': comparison = a.client.localeCompare(b.client); break;
+         case 'client': comparison = a.customerName.localeCompare(b.customerName); break;
          case 'reference': comparison = a.reference.localeCompare(b.reference); break;
          case 'orderNumber': comparison = a.orderNumber.localeCompare(b.orderNumber); break;
        }
