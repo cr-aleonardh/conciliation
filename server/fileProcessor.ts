@@ -37,6 +37,7 @@ function normalizeColumnName(col: string): string {
 function findColumn(headers: string[], targetColumn: string): string | null {
   const normalizedTarget = normalizeColumnName(targetColumn);
   for (const header of headers) {
+    if (!header) continue;
     const normalizedHeader = normalizeColumnName(header);
     if (normalizedHeader === normalizedTarget || COLUMN_MAPPING[normalizedHeader] === targetColumn) {
       return header;
