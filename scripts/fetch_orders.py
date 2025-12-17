@@ -89,7 +89,7 @@ def fetch_orders_from_api(api_user: str, api_password: str):
         
         filtered_orders = [
             order for order in data["data"]
-            if order.get("paymentMethod") == "Transferencia Bancaria"
+            if order.get("paymentMethod", "").lower() == "transferencia bancaria"
         ]
         filtered_count += len(filtered_orders)
         
