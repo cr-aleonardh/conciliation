@@ -22,7 +22,7 @@ export const bankTransactions = pgTable("bank_transactions", {
 
 export const orders = pgTable("orders", {
   orderId: integer("order_id").primaryKey(),
-  orderBankReference: text("order_bank_reference").notNull(),
+  orderBankReference: text("order_bank_reference"),
   amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
   fee: numeric("fee", { precision: 12, scale: 2 }).notNull(),
   amountTotalFee: numeric("amount_total_fee", { precision: 12, scale: 2 }).notNull(),
