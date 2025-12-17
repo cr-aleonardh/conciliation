@@ -1,0 +1,103 @@
+The Reconciliation Cockpit is a financial interface designed to reconcile Bank Transactions with Orders. It features a split-screen "cockpit" layout optimized for rapid manual and automated matching.
+1. Header & Global Actions
+
+The top bar acts as the command center for the application.
+
+    System Status: Displays the title "Reconciliation Cockpit" along with live counters for "Unmatched Bank" and "Unmatched Orders".
+    Primary Actions:
+        UPLOAD BANK FILE: Initiates the manual upload of bank statements.
+        FETCH ORDERS FROM API: Fetches fresh order data. It includes a 10-minute cooldown timer (displayed as M:SS) to prevent API rate limiting.
+        AUTOMATE SUGGESTIONS: Manually triggers the matching engine to find potential matches.
+        RECONCILED: A button to go to a new view showing all the reconciled records.
+    View Controls:
+        Matched Toggle: A switch to show/hide the "Matched" panel, that shows the current batch of records that are being matched.
+        
+
+2. The Workspace (Split View)
+
+The interface is vertically divided into two main panels:
+
+    Left Panel: Bank Transactions
+        Search & Filter: Real-time filtering by Payee, Amount, or Reference.
+        Sorting: Sortable columns for Date, Reference, Payee, and Amount.
+        Data Display: Rows show Date, Reference Badge (e.g., "REF-001"), Payee Name, and Amount.
+        Footer: Summarizes visible item count and total value.
+    Right Panel: Orders
+        Search & Filter: Real-time filtering by Client, Amount, Reference, or Order Number.
+        Sorting: Sortable columns for Date, Reference, Client, Order Number, and Amount.
+        Data Display: Rows show Date, Reference Badge, Order ID (7-digit Big Int, e.g., "1234567"), Client Name, and Amount.
+        Footer: Summarizes visible item count and total value.
+
+3. Smart Matching Engine
+
+The core workflow involves linking items from the left panel to the right.
+
+    Selection & Matching:
+        Users select items from both lists by clicking.
+        Dynamic Action Bar: A floating header bar appears upon selection, showing the Difference between selected totals.
+        Perfect Match: If the difference is effectively zero (< 0.01), the difference text turns green, and the "Match" button glows.
+        Match Execution: A "Match [X] to [Y]" button commits the link.
+        Shortcuts: Pressing "M" triggers the match action.
+    Match Quality Indicators: When items are selected, the system displays comparison stats:
+        R: Reference Match (Y/N)
+        N: Name Similarity (0-100%)
+        D: Date Difference (+/- Days)
+        A: Amount Difference
+
+4. Suggested Matches
+
+A collapsible "Suggested Matches" panel appears at the top when the matching engine finds high-confidence links.
+
+    Visual Comparison: Shows the Bank Transaction and proposed Order side-by-side, connected by a visual line.
+    Controls: Explicit "Approve" (Checkmark) and "Reject" (X) buttons for each suggestion.
+    Bulk Action: An "Approve All" button processes all suggestions at once.
+
+5. Matched History
+
+Accessible via the "Matched" toggle.
+
+    History Panel: Displays a list of the current reconciled groups, from the current batch.
+    Audit Trail: Shows exactly which bank transactions matched which orders.
+    Unmatch: Allows users to break a match if needed, returning items to the unmatched pools.
+    Reconcile Button: A specialized "RECONCILE" button appears in this panel header when matches exist, to fully reconcile this batch.
+
+Now, let's define the database. Create the database and nothing else. Don't add any logic. 
+
+The database has two main tables:
+bank_transactions and orders
+
+the table bank_transactions has the following columns:
+1. transaction_hash (Primary Key): String/Text. A unique SHA256 hash.
+2. payer_sender: String/Text. The name of the person/entity sending money.
+3. transaction_date: Date. The date of the transfer.
+4. credit_amount: Decimal/Float. The amount received.
+5. description: String/Text. The cleaned payment details/comments.
+6. extracted_reference: String/Text. The business code (e.g., AB123456) parsed from the description.
+7. match_reference_flag: Integer/Boolean. 1 if the extracted reference matches an Order exactly, 0 otherwise.
+8. match_name_score: Float. A similarity score (0-100) comparing 'payer_sender' to the Order's customer name.
+9. diff_days: Integer. The difference in days between 'transaction_date' and the Order date.
+10. diff_amount: Decimal/Float. The difference between 'credit_amount' and the Order total.
+11. reconciliation_status: String. This field is a changeable field that could have the following values: suggested_match (which makes reference when a transaction has a suggested match), temporarily_matched (when the user approves the suggested match or matches it manually), reconciled (when it's fully reconciled)
+12. order_id n to 1 relationship with the orders. 
+13. imported_at: timestamp when the record is imported
+14. reconciled_at: timestamp when the record is fully reconciled. 
+
+the table orders should have the following columns: 
+1. order_id (Primary Key): Integer. The unique ID of the order (e.g., 847311).
+2. order_bank_reference: String/Text. The reference code (e.g., "GA908699"). *Note: This is the field that matches the 'extracted_reference' in the bank_transaction table.*
+3. amount: Decimal/Float. The net amount to be sent (e.g., 50.00).
+4. fee: Decimal/Float. The service fee (e.g., 3.95).
+5. amount_total_fee: Decimal/Float. The total amount the customer must pay (e.g., 53.95). *Note: This is the value that usually matches 'credit_amount' in the bank statement.* This is the amount we care about, the one we'll show in the UI.
+6. order_timestamp: DateTime. The exact time the order was placed (ISO format).
+7. order_date: Date. The date component.
+8. customer_name: String/Text. Full name (e.g., "Gabriela Alejandra..."). 
+9.match_reference_flag: Integer/Boolean. 1 if the reference matches a Bank Transaction exactly, 0 otherwise.
+10. match_name_score: Float. A similarity score (0-100) comparing the customer's name to the 'payer_sender' on the bank transactions.
+11. diff_days: Integer. The difference in days between order_date and the 'transaction_date' in the Transaction info.
+12. diff_amount: Decimal/Float. The difference between 'credit_amount' and the Order total.
+13. reconciliation_status: String. This field is a changeable field that could have the following values: suggested_match (which makes reference when a transaction has a suggested match), temporarily_matched (when the user approves the suggested match or matches it manually), reconciled (when it's fully reconciled)
+14. fetched_at: timestamp when the record is fetched from the API. 
+15. reconciled_at: timestamp when the order is fully reconciled. 
+16. transaction_ids: 1 to n relationship link pointing to transactions' table. 
+
+please make sure the data types are appropriate for a standard SQL environment (PostgreSQL/MySQL).
