@@ -563,9 +563,10 @@ export default function ReconciliationPage() {
           const transformedRemittances: Remittance[] = orders.map((o: any) => ({
             id: String(o.orderId),
             date: o.orderDate?.split('T')[0] || '',
-            name: o.customerName,
+            customerName: o.customerName || '',
             reference: o.orderBankReference || '',
-            amount: parseFloat(o.amountTotalFee),
+            orderNumber: String(o.orderId),
+            amount: parseFloat(o.amountTotalFee) || 0,
             status: o.reconciliationStatus === 'unmatched' ? 'unmatched' : 
                    o.reconciliationStatus === 'suggested_match' ? 'suggested' : 'matched'
           }));
