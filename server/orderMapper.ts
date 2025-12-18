@@ -132,6 +132,12 @@ export function mapAndValidateOrders(rawOrders: unknown[]): MapResult {
       
       const apiOrder = parsed.data;
       
+      // Only include orders with status 'H'
+      const status = apiOrder.status?.charAt(0);
+      if (status !== 'H') {
+        continue;
+      }
+      
       const mapped = applyOrderDefaults({
         orderId: apiOrder.orderId,
         orderBankReference: apiOrder.orderBankReference || null,
