@@ -16,6 +16,7 @@ export const bankTransactions = pgTable("bank_transactions", {
   diffAmount: numeric("diff_amount", { precision: 12, scale: 2 }),
   reconciliationStatus: text("reconciliation_status").notNull().default('unmatched'),
   orderId: integer("order_id"),
+  batchId: integer("batch_id"),
   importedAt: timestamp("imported_at", { mode: 'string' }).notNull().default(sql`now()`),
   reconciledAt: timestamp("reconciled_at", { mode: 'string' }),
 });
@@ -35,6 +36,7 @@ export const orders = pgTable("orders", {
   diffDays: integer("diff_days"),
   diffAmount: numeric("diff_amount", { precision: 12, scale: 2 }),
   reconciliationStatus: text("reconciliation_status").notNull().default('unmatched'),
+  batchId: integer("batch_id"),
   fetchedAt: timestamp("fetched_at", { mode: 'string' }).notNull().default(sql`now()`),
   reconciledAt: timestamp("reconciled_at", { mode: 'string' }),
   transactionIds: text("transaction_ids").array(),
