@@ -904,7 +904,7 @@ export default function ReconciliationPage() {
     const { transactions, orders } = reconciledData;
     
     // Get unique batch IDs from orders, sorted descending
-    const batchIds = [...new Set(orders.map(o => o.batchId).filter(Boolean))].sort((a, b) => b - a);
+    const batchIds = Array.from(new Set(orders.map(o => o.batchId).filter(Boolean))).sort((a, b) => (b as number) - (a as number));
     
     return batchIds.map(batchId => {
       const batchOrders = orders.filter(o => o.batchId === batchId);
