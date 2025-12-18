@@ -33,6 +33,9 @@ export interface IStorage {
   unmatchTransaction(transactionHash: string): Promise<void>;
   reconcileMatches(transactionHashes: string[], orderIds: number[]): Promise<void>;
   reconcileBatch(matches: { orderId: number; transactionHashes: string[] }[]): Promise<{ batchId: number }>;
+  
+  // Reconciled Records
+  getReconciledRecords(): Promise<{ transactions: BankTransaction[]; orders: Order[] }>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -285,6 +288,20 @@ export class DatabaseStorage implements IStorage {
       
       return { batchId: newBatchId };
     });
+  }
+
+  async getReconciledRecords(): Promise<{ transactions: BankTransaction[]; orders: Order[] }> {
+    const reconciledTransactions = await db
+      .select()
+      .from(bankTransactions)
+      .where(eq(bankTransactions.reconciliationStatus, 'reconciled'));
+    
+    const reconciledOrders = await db
+      .select()
+      .from(orders)
+      .where(eq(orders.reconciliationStatus, 'reconciled'));
+    
+    return { transactions: reconciledTransactions, orders: reconciledOrders };
   }
 }
 

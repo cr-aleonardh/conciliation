@@ -236,6 +236,16 @@ export async function registerRoutes(
     }
   });
 
+  // Get reconciled records grouped by batch
+  app.get("/api/reconciled", async (req, res) => {
+    try {
+      const { transactions, orders } = await storage.getReconciledRecords();
+      res.json({ transactions, orders });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   // Bank File Upload - Process directly in Node.js
   app.post("/api/upload-bank-file", upload.single('file'), async (req, res) => {
     try {
