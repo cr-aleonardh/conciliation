@@ -7,6 +7,8 @@ import multer from "multer";
 import { processUploadedFile } from "./fileProcessor";
 import { spawn } from "child_process";
 import { mapAndValidateOrders } from "./orderMapper";
+import fs from "fs";
+import path from "path";
 
 const upload = multer({ storage: multer.memoryStorage() });
 
@@ -359,6 +361,71 @@ export async function registerRoutes(
       res.status(500).json({ 
         success: false, 
         message: `Error fetching orders: ${error.message}` 
+      });
+    }
+  });
+
+  app.get("/api/export-reconciliation", async (req, res) => {
+    try {
+      const pythonProcess = spawn("python3", ["python_services/export_reconciliation.py"]);
+      
+      let stdout = "";
+      let stderr = "";
+      
+      pythonProcess.stdout.on("data", (data) => {
+        stdout += data.toString();
+      });
+      
+      pythonProcess.stderr.on("data", (data) => {
+        stderr += data.toString();
+      });
+      
+      pythonProcess.on("close", (code) => {
+        if (code !== 0) {
+          console.error("Python export script failed:", stderr);
+          return res.status(500).json({
+            success: false,
+            message: `Export failed: ${stderr || 'Unknown error'}`
+          });
+        }
+        
+        const filepath = stdout.trim();
+        
+        if (!fs.existsSync(filepath)) {
+          return res.status(500).json({
+            success: false,
+            message: "Export file was not created"
+          });
+        }
+        
+        const filename = path.basename(filepath);
+        
+        res.setHeader('Content-Type', 'application/vnd.ms-excel');
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        
+        const fileStream = fs.createReadStream(filepath);
+        fileStream.pipe(res);
+        
+        fileStream.on('end', () => {
+          fs.unlink(filepath, (err) => {
+            if (err) console.error("Failed to delete temp file:", err);
+          });
+        });
+      });
+      
+      pythonProcess.on("error", (error) => {
+        console.error("Failed to start Python export script:", error);
+        res.status(500).json({
+          success: false,
+          message: `Failed to start export: ${error.message}`
+        });
+      });
+      
+    } catch (error: any) {
+      console.error("Error exporting reconciliation:", error);
+      res.status(500).json({ 
+        success: false, 
+        message: `Export error: ${error.message}` 
       });
     }
   });
