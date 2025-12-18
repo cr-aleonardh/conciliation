@@ -10,6 +10,7 @@ export interface BankTransaction {
   reference: string;
   amount: number;
   status: 'unmatched' | 'matched' | 'suggested';
+  orderId?: number;
 }
 
 export interface Remittance {
@@ -638,7 +639,8 @@ export default function ReconciliationPage() {
             reference: t.extractedReference || '',
             amount: parseFloat(t.creditAmount),
             status: t.reconciliationStatus === 'unmatched' ? 'unmatched' : 
-                   t.reconciliationStatus === 'suggested_match' ? 'suggested' : 'matched'
+                   t.reconciliationStatus === 'suggested_match' ? 'suggested' : 'matched',
+            orderId: t.orderId || undefined
           }));
           setBankTransactions(transformedTransactions);
         }
@@ -710,7 +712,8 @@ export default function ReconciliationPage() {
             reference: t.extractedReference || '',
             amount: parseFloat(t.creditAmount) || 0,
             status: t.reconciliationStatus === 'unmatched' ? 'unmatched' : 
-                   t.reconciliationStatus === 'suggested_match' ? 'suggested' : 'matched'
+                   t.reconciliationStatus === 'suggested_match' ? 'suggested' : 'matched',
+            orderId: t.orderId || undefined
           }));
           setBankTransactions(transformedBank);
         }
@@ -1026,10 +1029,16 @@ export default function ReconciliationPage() {
     // 1. Find matched remittances
     const matchedRemits = remittances.filter(r => r.status === 'matched');
     
-    // 2. Map them to their bank transactions
+    // 2. Map them to their bank transactions using both approaches for robustness:
+    //    - Check if bank transaction is in remittance's matchedBankIds array
+    //    - OR check if bank transaction's orderId matches the remittance id
     return matchedRemits.map(r => {
+       const remitId = parseInt(r.id);
        const relatedBankTxns = bankTransactions.filter(b => 
-         b.status === 'matched' && r.matchedBankIds?.includes(b.id)
+         b.status === 'matched' && (
+           r.matchedBankIds?.includes(b.id) || 
+           b.orderId === remitId
+         )
        );
        return { remittance: r, bankTransactions: relatedBankTxns };
     }).sort((a, b) => b.remittance.date.localeCompare(a.remittance.date)); // Sort by date desc
@@ -1038,9 +1047,20 @@ export default function ReconciliationPage() {
   // Counts for reconcile confirmation (independent of showMatched toggle)
   const reconcileCounts = useMemo(() => {
     const matchedRemits = remittances.filter(r => r.status === 'matched');
-    const totalTransactions = matchedRemits.reduce((sum, r) => sum + (r.matchedBankIds?.length || 0), 0);
+    // Count transactions using both matchedBankIds and orderId for robustness
+    let totalTransactions = 0;
+    for (const r of matchedRemits) {
+      const remitId = parseInt(r.id);
+      const txCount = bankTransactions.filter(b => 
+        b.status === 'matched' && (
+          r.matchedBankIds?.includes(b.id) || 
+          b.orderId === remitId
+        )
+      ).length;
+      totalTransactions += txCount;
+    }
     return { orders: matchedRemits.length, transactions: totalTransactions };
-  }, [remittances]);
+  }, [remittances, bankTransactions]);
 
   return (
     <div className="h-screen w-full bg-background text-foreground flex flex-col overflow-hidden font-sans">
