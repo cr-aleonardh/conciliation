@@ -577,7 +577,7 @@ export default function ReconciliationPage() {
           const orders = await ordersResponse.json();
           const transformedRemittances: Remittance[] = orders.map((o: any) => ({
             id: String(o.orderId),
-            date: o.orderDate?.split('T')[0] || '',
+            date: o.orderDate?.split(' ')[0] || '',
             customerName: o.customerName || '',
             reference: o.orderBankReference || '',
             orderNumber: String(o.orderId),
@@ -639,7 +639,7 @@ export default function ReconciliationPage() {
           // Transform API data to match frontend interface
           const transformedTransactions: BankTransaction[] = transactions.map((t: any) => ({
             id: t.transactionHash,
-            date: t.transactionDate?.split('T')[0] || '',
+            date: t.transactionDate?.split(' ')[0] || '',
             payee: t.payerSender,
             reference: t.extractedReference || '',
             amount: parseFloat(t.creditAmount),
@@ -711,7 +711,7 @@ export default function ReconciliationPage() {
           const bankData = await bankResponse.json();
           const transformedBank: BankTransaction[] = bankData.map((t: any) => ({
             id: t.transactionHash,
-            date: t.transactionDate?.split('T')[0] || '',
+            date: t.transactionDate?.split(' ')[0] || '',
             payee: t.payerSender || '',
             reference: t.extractedReference || '',
             amount: parseFloat(t.creditAmount) || 0,
@@ -725,7 +725,7 @@ export default function ReconciliationPage() {
           const orders = await ordersResponse.json();
           const transformedRemittances: Remittance[] = orders.map((o: any) => ({
             id: String(o.orderId),
-            date: o.orderDate?.split('T')[0] || '',
+            date: o.orderDate?.split(' ')[0] || '',
             customerName: o.customerName || '',
             reference: o.orderBankReference || '',
             orderNumber: String(o.orderId),
@@ -1611,7 +1611,7 @@ const ReconciledBatchGroup = ({ batch }: { batch: {
                     <div className="flex items-center gap-2">
                       <CheckCircle2 className="w-3 h-3 text-green-600" />
                       <span className="text-xs font-mono text-muted-foreground">
-                        {t.transactionDate?.split('T')[0]}
+                        {t.transactionDate?.split(' ')[0]}
                       </span>
                       <Badge variant="secondary" className="text-[10px] h-4 px-1 font-mono">
                         {t.extractedReference || '-'}
@@ -1629,7 +1629,7 @@ const ReconciledBatchGroup = ({ batch }: { batch: {
                   <div className="flex items-center gap-2">
                     <CheckCircle2 className="w-3 h-3 text-green-600" />
                     <span className="text-xs font-mono text-muted-foreground">
-                      {order.orderDate?.split('T')[0]}
+                      {order.orderDate?.split(' ')[0]}
                     </span>
                     <Badge variant="secondary" className="text-[10px] h-4 px-1 font-mono bg-pink-50 text-pink-700 dark:bg-pink-900/20 dark:text-pink-400">
                       {order.orderBankReference || '-'}
