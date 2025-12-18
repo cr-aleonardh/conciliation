@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Link } from 'wouter';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, ArrowRightLeft, X, RefreshCw, Layers, Keyboard, Eye, EyeOff, CheckCircle2, ArrowUpDown, ArrowUp, ArrowDown, Sparkles, Check, ThumbsUp, ThumbsDown, XCircle, History, GripHorizontal, Unlink, Upload, DownloadCloud, ChevronDown, ChevronRight } from 'lucide-react';
+import { Search, ArrowRightLeft, X, RefreshCw, Layers, Keyboard, Eye, EyeOff, CheckCircle2, ArrowUpDown, ArrowUp, ArrowDown, Sparkles, Check, ThumbsUp, ThumbsDown, XCircle, History, GripHorizontal, Unlink, Upload, DownloadCloud, ChevronDown, ChevronRight, FileSpreadsheet } from 'lucide-react';
 
 export interface BankTransaction {
   id: string;
@@ -524,6 +524,9 @@ export default function ReconciliationPage() {
   // Reconcile State
   const [isReconciling, setIsReconciling] = useState(false);
   const [reconcileStatus, setReconcileStatus] = useState<{ type: 'success' | 'error', message: string } | null>(null);
+  
+  // Export State
+  const [isExporting, setIsExporting] = useState(false);
 
 
   useEffect(() => {
@@ -887,6 +890,42 @@ export default function ReconciliationPage() {
     }
   };
 
+  // Export Handler
+  const handleExport = async () => {
+    if (isExporting) return;
+    setIsExporting(true);
+    
+    try {
+      const response = await fetch('/api/export-reconciliation');
+      
+      if (!response.ok) {
+        throw new Error('Export failed');
+      }
+      
+      const contentDisposition = response.headers.get('Content-Disposition');
+      let filename = 'BankReconciliation.xls';
+      if (contentDisposition) {
+        const match = contentDisposition.match(/filename="(.+)"/);
+        if (match) filename = match[1];
+      }
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+    } catch (error) {
+      console.error('Export failed:', error);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
 
   // Sorting Handlers
   const handleBankSort = (field: BankSortField) => {
@@ -1103,6 +1142,25 @@ export default function ReconciliationPage() {
                   <>
                     <CheckCircle2 className="w-3.5 h-3.5" />
                     RECONCILE
+                  </>
+                )}
+             </Button>
+             <Button 
+               size="sm" 
+               className="h-8 text-xs gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold"
+               onClick={handleExport}
+               disabled={isExporting}
+               data-testid="button-export"
+             >
+                {isExporting ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    EXPORTING...
+                  </>
+                ) : (
+                  <>
+                    <FileSpreadsheet className="w-3.5 h-3.5" />
+                    EXPORT
                   </>
                 )}
              </Button>
