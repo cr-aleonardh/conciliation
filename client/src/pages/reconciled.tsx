@@ -119,22 +119,30 @@ export default function ReconciledPage() {
   const reconciledBatches = useMemo(() => {
     const { transactions, orders } = reconciledData;
     
-    const batchIds = Array.from(new Set(orders.map(o => o.batchId).filter(Boolean))).sort((a, b) => (b as number) - (a as number));
+    // Group by transaction batch_id (this is the correct historical record)
+    const batchIds = Array.from(new Set(transactions.map(t => t.batchId).filter(Boolean))).sort((a, b) => (b as number) - (a as number));
     
     return batchIds.map(batchId => {
-      const batchOrders = orders.filter(o => o.batchId === batchId);
       const batchTransactions = transactions.filter(t => t.batchId === batchId);
       
-      const groups = batchOrders.map(order => {
-        const orderTransactions = batchTransactions.filter(t => t.orderId === order.orderId);
-        return { order, transactions: orderTransactions };
+      // Get unique order IDs from this batch's transactions
+      const orderIdsInBatch = Array.from(new Set(batchTransactions.map(t => t.orderId).filter(Boolean)));
+      
+      // Find orders for these IDs
+      const groups = orderIdsInBatch.map(orderId => {
+        const order = orders.find(o => o.orderId === orderId);
+        const orderTransactions = batchTransactions.filter(t => t.orderId === orderId);
+        return { order: order || { orderId, customerName: 'Unknown', orderBankReference: '', amountTotalFee: '0', orderDate: '' }, transactions: orderTransactions };
       });
+      
+      // Get reconciled timestamp from first transaction
+      const reconciledAt = batchTransactions[0]?.reconciledAt;
       
       return {
         batchId,
-        reconciledAt: batchOrders[0]?.reconciledAt,
+        reconciledAt,
         groups,
-        totalAmount: batchOrders.reduce((sum, o) => sum + parseFloat(o.amountTotalFee || '0'), 0)
+        totalAmount: batchTransactions.reduce((sum, t) => sum + parseFloat(t.creditAmount || '0'), 0)
       };
     });
   }, [reconciledData]);
