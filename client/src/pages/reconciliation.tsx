@@ -32,6 +32,7 @@ import { Label } from '@/components/ui/label';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 // --- Types ---
 
@@ -524,6 +525,7 @@ export default function ReconciliationPage() {
   // Reconcile State
   const [isReconciling, setIsReconciling] = useState(false);
   const [reconcileStatus, setReconcileStatus] = useState<{ type: 'success' | 'error', message: string } | null>(null);
+  const [showReconcileConfirm, setShowReconcileConfirm] = useState(false);
 
 
   useEffect(() => {
@@ -849,8 +851,10 @@ export default function ReconciliationPage() {
     
     setIsReconciling(true);
     setReconcileStatus(null);
+    setShowReconcileConfirm(false);
     
     try {
+      // First reconcile the batch
       const response = await fetch('/api/reconcile-batch', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -860,6 +864,30 @@ export default function ReconciliationPage() {
       const result = await response.json();
       
       if (result.success) {
+        // Now download the export file
+        const orderIds = matchedRemits.map(r => parseInt(r.id));
+        const exportResponse = await fetch('/api/export-reconciliation', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orderIds })
+        });
+        
+        if (exportResponse.ok) {
+          const blob = await exportResponse.blob();
+          const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+          const filename = `BankReconciliation-${timestamp}.xls`;
+          
+          // Trigger download
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = filename;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          window.URL.revokeObjectURL(url);
+        }
+        
         setReconcileStatus({
           type: 'success',
           message: `Batch ${result.batchId} reconciled successfully with ${matches.length} groups`
@@ -1007,6 +1035,13 @@ export default function ReconciliationPage() {
     }).sort((a, b) => b.remittance.date.localeCompare(a.remittance.date)); // Sort by date desc
   }, [remittances, bankTransactions, showMatched]);
 
+  // Counts for reconcile confirmation (independent of showMatched toggle)
+  const reconcileCounts = useMemo(() => {
+    const matchedRemits = remittances.filter(r => r.status === 'matched');
+    const totalTransactions = matchedRemits.reduce((sum, r) => sum + (r.matchedBankIds?.length || 0), 0);
+    return { orders: matchedRemits.length, transactions: totalTransactions };
+  }, [remittances]);
+
   return (
     <div className="h-screen w-full bg-background text-foreground flex flex-col overflow-hidden font-sans">
       
@@ -1087,6 +1122,27 @@ export default function ReconciliationPage() {
                   RECONCILED
                </Button>
              </Link>
+             {reconcileCounts.orders > 0 && (
+               <Button 
+                 size="sm" 
+                 className="h-8 text-xs gap-2 bg-green-600 hover:bg-green-700 text-white"
+                 onClick={() => setShowReconcileConfirm(true)}
+                 disabled={isReconciling}
+                 data-testid="button-fully-reconcile"
+               >
+                  {isReconciling ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      RECONCILING...
+                    </>
+                  ) : (
+                    <>
+                      <Check className="w-3.5 h-3.5" />
+                      FULLY RECONCILE
+                    </>
+                  )}
+               </Button>
+             )}
           </div>
         </div>
 
@@ -1462,17 +1518,6 @@ export default function ReconciliationPage() {
                          Matched History
                        </span>
                        <div className="flex items-center gap-3">
-                         {matchedGroups.length > 0 && (
-                            <Button 
-                              size="sm" 
-                              className="h-5 text-[10px] px-2 font-bold tracking-wider"
-                              onClick={handleReconcile}
-                              disabled={isReconciling}
-                              data-testid="button-reconcile"
-                            >
-                               {isReconciling ? 'RECONCILING...' : 'RECONCILE'}
-                            </Button>
-                         )}
                          <span className="text-xs text-muted-foreground">{matchedGroups.length} groups</span>
                        </div>
                     </div>
@@ -1509,6 +1554,26 @@ export default function ReconciliationPage() {
         <span className="flex items-center gap-1"><kbd className="bg-muted px-1 rounded font-mono">Click</kbd> Select</span>
         <span className="flex items-center gap-1"><kbd className="bg-muted px-1 rounded font-mono">M</kbd> Match Selected</span>
       </div>
+
+      {/* Reconcile Confirmation Dialog */}
+      <AlertDialog open={showReconcileConfirm} onOpenChange={setShowReconcileConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Reconciliation</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to reconcile <strong>{reconcileCounts.transactions} transactions</strong> with <strong>{reconcileCounts.orders} orders</strong>?
+              <br /><br />
+              This will finalize the matches and download an Excel report.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleReconcile} className="bg-green-600 hover:bg-green-700">
+              Yes, Reconcile
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
     </div>
   );
