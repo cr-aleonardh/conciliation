@@ -520,6 +520,10 @@ export default function ReconciliationPage() {
   const [isFetchingOrders, setIsFetchingOrders] = useState(false);
   const [fetchStatus, setFetchStatus] = useState<{ type: 'success' | 'error', message: string } | null>(null);
 
+  // Reconcile State
+  const [isReconciling, setIsReconciling] = useState(false);
+  const [reconcileStatus, setReconcileStatus] = useState<{ type: 'success' | 'error', message: string } | null>(null);
+
   useEffect(() => {
     if (fetchDataCooldown === null) return;
 
@@ -810,6 +814,60 @@ export default function ReconciliationPage() {
     setRemittances(prev => prev.map(r => 
       r.id === remitId ? { ...r, status: 'unmatched', matchedBankIds: undefined } : r
     ));
+  };
+
+  // Reconcile Logic - finalize all matched items
+  const handleReconcile = async () => {
+    if (isReconciling) return;
+    
+    // Get all matched groups
+    const matchedRemits = remittances.filter(r => r.status === 'matched');
+    if (matchedRemits.length === 0) return;
+    
+    // Build matches array for API
+    const matches = matchedRemits.map(r => ({
+      orderId: parseInt(r.id),
+      transactionHashes: r.matchedBankIds || []
+    }));
+    
+    setIsReconciling(true);
+    setReconcileStatus(null);
+    
+    try {
+      const response = await fetch('/api/reconcile-batch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ matches })
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        setReconcileStatus({
+          type: 'success',
+          message: `Batch ${result.batchId} reconciled successfully with ${matches.length} groups`
+        });
+        
+        // Remove reconciled items from local state (they're now finalized in DB)
+        const reconciledRemitIds = new Set(matchedRemits.map(r => r.id));
+        const reconciledBankIds = new Set(matchedRemits.flatMap(r => r.matchedBankIds || []));
+        
+        setBankTransactions(prev => prev.filter(t => !reconciledBankIds.has(t.id)));
+        setRemittances(prev => prev.filter(r => !reconciledRemitIds.has(r.id)));
+      } else {
+        setReconcileStatus({
+          type: 'error',
+          message: result.message || 'Failed to reconcile'
+        });
+      }
+    } catch (error) {
+      setReconcileStatus({
+        type: 'error',
+        message: 'Failed to reconcile. Please try again.'
+      });
+    } finally {
+      setIsReconciling(false);
+    }
   };
 
   // Sorting Handlers
@@ -1123,6 +1181,40 @@ export default function ReconciliationPage() {
         )}
       </AnimatePresence>
 
+      {/* Reconcile Status Notification */}
+      <AnimatePresence>
+        {reconcileStatus && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className={cn(
+              "mx-4 mt-2 p-3 rounded-md flex items-center justify-between",
+              reconcileStatus.type === 'success' 
+                ? "bg-green-500/10 border border-green-500/30 text-green-600 dark:text-green-400"
+                : "bg-destructive/10 border border-destructive/30 text-destructive"
+            )}
+          >
+            <div className="flex items-center gap-2">
+              {reconcileStatus.type === 'success' ? (
+                <CheckCircle2 className="w-4 h-4" />
+              ) : (
+                <XCircle className="w-4 h-4" />
+              )}
+              <span className="text-sm">{reconcileStatus.message}</span>
+            </div>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="h-6 w-6 p-0"
+              onClick={() => setReconcileStatus(null)}
+            >
+              <X className="w-3 h-3" />
+            </Button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Main Workspace */}
       <div className="flex-1 flex flex-col overflow-hidden relative">
         
@@ -1329,8 +1421,11 @@ export default function ReconciliationPage() {
                             <Button 
                               size="sm" 
                               className="h-5 text-[10px] px-2 font-bold tracking-wider"
+                              onClick={handleReconcile}
+                              disabled={isReconciling}
+                              data-testid="button-reconcile"
                             >
-                               RECONCILE
+                               {isReconciling ? 'RECONCILING...' : 'RECONCILE'}
                             </Button>
                          )}
                          <span className="text-xs text-muted-foreground">{matchedGroups.length} groups</span>
