@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import { Link } from 'wouter';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, ArrowRightLeft, X, RefreshCw, Layers, Keyboard, Eye, EyeOff, CheckCircle2, ArrowUpDown, ArrowUp, ArrowDown, Sparkles, Check, ThumbsUp, ThumbsDown, XCircle, History, GripHorizontal, Unlink, Upload, DownloadCloud, ChevronDown, ChevronRight } from 'lucide-react';
 
@@ -31,9 +32,6 @@ import { Label } from '@/components/ui/label';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 // --- Types ---
 
@@ -527,13 +525,6 @@ export default function ReconciliationPage() {
   const [isReconciling, setIsReconciling] = useState(false);
   const [reconcileStatus, setReconcileStatus] = useState<{ type: 'success' | 'error', message: string } | null>(null);
 
-  // Reconciled Modal State
-  const [showReconciledModal, setShowReconciledModal] = useState(false);
-  const [isLoadingReconciled, setIsLoadingReconciled] = useState(false);
-  const [reconciledData, setReconciledData] = useState<{
-    transactions: any[];
-    orders: any[];
-  }>({ transactions: [], orders: [] });
 
   useEffect(() => {
     if (fetchDataCooldown === null) return;
@@ -881,49 +872,6 @@ export default function ReconciliationPage() {
     }
   };
 
-  // Open Reconciled Modal
-  const handleOpenReconciledModal = async () => {
-    setShowReconciledModal(true);
-    setIsLoadingReconciled(true);
-    
-    try {
-      const response = await fetch('/api/reconciled');
-      if (response.ok) {
-        const data = await response.json();
-        setReconciledData(data);
-      }
-    } catch (error) {
-      console.error('Failed to fetch reconciled records:', error);
-    } finally {
-      setIsLoadingReconciled(false);
-    }
-  };
-
-  // Group reconciled data by batch_id
-  const reconciledBatches = useMemo(() => {
-    const { transactions, orders } = reconciledData;
-    
-    // Get unique batch IDs from orders, sorted descending
-    const batchIds = Array.from(new Set(orders.map(o => o.batchId).filter(Boolean))).sort((a, b) => (b as number) - (a as number));
-    
-    return batchIds.map(batchId => {
-      const batchOrders = orders.filter(o => o.batchId === batchId);
-      const batchTransactions = transactions.filter(t => t.batchId === batchId);
-      
-      // Group by order
-      const groups = batchOrders.map(order => {
-        const orderTransactions = batchTransactions.filter(t => t.orderId === order.orderId);
-        return { order, transactions: orderTransactions };
-      });
-      
-      return {
-        batchId,
-        reconciledAt: batchOrders[0]?.reconciledAt,
-        groups,
-        totalAmount: batchOrders.reduce((sum, o) => sum + parseFloat(o.amountTotalFee || '0'), 0)
-      };
-    });
-  }, [reconciledData]);
 
   // Sorting Handlers
   const handleBankSort = (field: BankSortField) => {
@@ -1093,16 +1041,17 @@ export default function ReconciliationPage() {
                 <Sparkles className="w-3.5 h-3.5" />
                 AUTOMATE SUGGESTIONS
              </Button>
-             <Button 
-               size="sm" 
-               variant="outline" 
-               className="h-8 text-xs gap-2"
-               onClick={handleOpenReconciledModal}
-               data-testid="button-view-reconciled"
-             >
-                <CheckCircle2 className="w-3.5 h-3.5" />
-                RECONCILED
-             </Button>
+             <Link href="/reconciled">
+               <Button 
+                 size="sm" 
+                 variant="outline" 
+                 className="h-8 text-xs gap-2"
+                 data-testid="button-view-reconciled"
+               >
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  RECONCILED
+               </Button>
+             </Link>
           </div>
         </div>
 
@@ -1526,124 +1475,6 @@ export default function ReconciliationPage() {
         <span className="flex items-center gap-1"><kbd className="bg-muted px-1 rounded font-mono">M</kbd> Match Selected</span>
       </div>
 
-      {/* Reconciled Records Modal */}
-      <Dialog open={showReconciledModal} onOpenChange={setShowReconciledModal}>
-        <DialogContent className="max-w-5xl h-[80vh] flex flex-col">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <CheckCircle2 className="w-5 h-5 text-green-600" />
-              Reconciled Records
-              <Badge variant="secondary" className="ml-2">
-                {reconciledData.orders.length} orders
-              </Badge>
-            </DialogTitle>
-          </DialogHeader>
-          
-          <ScrollArea className="flex-1 pr-4">
-            {isLoadingReconciled ? (
-              <div className="flex items-center justify-center py-20">
-                <RefreshCw className="w-6 h-6 animate-spin text-muted-foreground" />
-              </div>
-            ) : reconciledBatches.length === 0 ? (
-              <div className="text-center py-20 text-muted-foreground">
-                No reconciled records found.
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {reconciledBatches.map((batch) => (
-                  <ReconciledBatchGroup key={batch.batchId} batch={batch} />
-                ))}
-              </div>
-            )}
-          </ScrollArea>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
-
-// Reconciled Batch Group Component
-const ReconciledBatchGroup = ({ batch }: { batch: { 
-  batchId: number; 
-  reconciledAt: string; 
-  groups: { order: any; transactions: any[] }[];
-  totalAmount: number;
-}}) => {
-  const [isOpen, setIsOpen] = useState(true);
-  
-  const formatDate = (dateStr: string) => {
-    if (!dateStr) return '';
-    return dateStr.split('T')[0];
-  };
-  
-  return (
-    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-      <CollapsibleTrigger asChild>
-        <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg cursor-pointer hover:bg-muted/50 transition-colors border border-border/40">
-          <div className="flex items-center gap-3">
-            {isOpen ? (
-              <ChevronDown className="w-4 h-4 text-muted-foreground" />
-            ) : (
-              <ChevronRight className="w-4 h-4 text-muted-foreground" />
-            )}
-            <Badge variant="outline" className="font-mono">Batch #{batch.batchId}</Badge>
-            <span className="text-sm text-muted-foreground">
-              {batch.groups.length} groups
-            </span>
-            <span className="text-xs text-muted-foreground/70">
-              {formatDate(batch.reconciledAt)}
-            </span>
-          </div>
-          <span className="font-mono text-sm text-green-600">
-            {batch.totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-          </span>
-        </div>
-      </CollapsibleTrigger>
-      
-      <CollapsibleContent>
-        <div className="mt-2 space-y-2 pl-4 border-l-2 border-border/30 ml-2">
-          {batch.groups.map(({ order, transactions }) => (
-            <div key={order.orderId} className="flex border border-border/40 rounded-md overflow-hidden bg-card">
-              {/* Left: Bank Transactions */}
-              <div className="flex-1 p-3 border-r border-border/40 space-y-1">
-                {transactions.map((t: any) => (
-                  <div key={t.transactionHash} className="flex items-center justify-between text-sm">
-                    <div className="flex items-center gap-2">
-                      <CheckCircle2 className="w-3 h-3 text-green-600" />
-                      <span className="text-xs font-mono text-muted-foreground">
-                        {t.transactionDate?.split(' ')[0]}
-                      </span>
-                      <Badge variant="secondary" className="text-[10px] h-4 px-1 font-mono">
-                        {t.extractedReference || '-'}
-                      </Badge>
-                      <span className="text-muted-foreground truncate max-w-[150px]">{t.payerSender}</span>
-                    </div>
-                    <span className="font-mono text-blue-600">{parseFloat(t.creditAmount).toLocaleString()}</span>
-                  </div>
-                ))}
-              </div>
-              
-              {/* Right: Order */}
-              <div className="flex-1 p-3">
-                <div className="flex items-center justify-between text-sm">
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 className="w-3 h-3 text-green-600" />
-                    <span className="text-xs font-mono text-muted-foreground">
-                      {order.orderDate?.split(' ')[0]}
-                    </span>
-                    <Badge variant="secondary" className="text-[10px] h-4 px-1 font-mono bg-pink-50 text-pink-700 dark:bg-pink-900/20 dark:text-pink-400">
-                      {order.orderBankReference || '-'}
-                    </Badge>
-                    <span className="text-xs text-muted-foreground/60">#{order.orderId}</span>
-                    <span className="text-muted-foreground truncate max-w-[150px]">{order.customerName}</span>
-                  </div>
-                  <span className="font-mono text-pink-600">{parseFloat(order.amountTotalFee).toLocaleString()}</span>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </CollapsibleContent>
-    </Collapsible>
-  );
-};
