@@ -414,5 +414,64 @@ export async function registerRoutes(
     }
   });
 
+  // Run suggestion matching script
+  app.post("/api/suggestions/run", async (req, res) => {
+    try {
+      console.log("Running suggestion matching script...");
+      
+      const pythonProcess = spawn("python", ["scripts/suggest_matches.py"], {
+        env: { ...process.env }
+      });
+      
+      let stdout = "";
+      let stderr = "";
+      
+      pythonProcess.stdout.on("data", (data) => {
+        stdout += data.toString();
+        console.log("Suggestion script output:", data.toString());
+      });
+      
+      pythonProcess.stderr.on("data", (data) => {
+        stderr += data.toString();
+        console.error("Suggestion script error:", data.toString());
+      });
+      
+      pythonProcess.on("close", (code) => {
+        if (code !== 0) {
+          console.error("Suggestion script failed with code:", code);
+          return res.status(500).json({
+            success: false,
+            message: `Script failed with code ${code}: ${stderr}`
+          });
+        }
+        
+        // Parse the output to get suggestions count
+        const match = stdout.match(/Suggestions: (\d+)/);
+        const count = match ? parseInt(match[1]) : 0;
+        
+        res.json({
+          success: true,
+          message: `Found ${count} potential matches`,
+          suggestionsCount: count
+        });
+      });
+      
+      pythonProcess.on("error", (error) => {
+        console.error("Failed to start suggestion script:", error);
+        res.status(500).json({
+          success: false,
+          message: `Failed to start script: ${error.message}`
+        });
+      });
+      
+    } catch (error: any) {
+      console.error("Error running suggestions:", error);
+      res.status(500).json({ 
+        success: false, 
+        message: `Error running suggestions: ${error.message}` 
+      });
+    }
+  });
+
   return httpServer;
 }
