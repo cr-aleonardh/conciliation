@@ -1573,8 +1573,7 @@ const ReconciledBatchGroup = ({ batch }: { batch: {
   
   const formatDate = (dateStr: string) => {
     if (!dateStr) return '';
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    return dateStr.split('T')[0];
   };
   
   return (
