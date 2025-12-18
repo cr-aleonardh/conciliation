@@ -522,6 +522,9 @@ export default function ReconciliationPage() {
   // Fetch Orders State
   const [isFetchingOrders, setIsFetchingOrders] = useState(false);
   const [fetchStatus, setFetchStatus] = useState<{ type: 'success' | 'error', message: string } | null>(null);
+  
+  // Suggestions State
+  const [isRunningSuggestions, setIsRunningSuggestions] = useState(false);
 
   // Reconcile State
   const [isReconciling, setIsReconciling] = useState(false);
@@ -602,6 +605,67 @@ export default function ReconciliationPage() {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const handleRunSuggestions = async () => {
+    if (isRunningSuggestions) return;
+    
+    setIsRunningSuggestions(true);
+    
+    try {
+      const response = await fetch('/api/suggestions/run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        // Refresh both bank transactions and orders to show updated suggestions
+        const [bankResponse, ordersResponse] = await Promise.all([
+          fetch('/api/bank-transactions'),
+          fetch('/api/orders')
+        ]);
+        
+        if (bankResponse.ok) {
+          const bankData = await bankResponse.json();
+          const transformedBank: BankTransaction[] = bankData.map((t: any) => ({
+            id: t.transactionHash,
+            date: t.transactionDate?.split(' ')[0] || '',
+            payee: t.payerSender || '',
+            reference: t.extractedReference || '',
+            amount: parseFloat(t.creditAmount) || 0,
+            status: t.reconciliationStatus === 'unmatched' ? 'unmatched' : 
+                   t.reconciliationStatus === 'suggested_match' ? 'suggested' : 'matched',
+            orderId: t.orderId || undefined
+          }));
+          setBankTransactions(transformedBank);
+        }
+        
+        if (ordersResponse.ok) {
+          const orders = await ordersResponse.json();
+          const transformedRemittances: Remittance[] = orders.map((o: any) => ({
+            id: String(o.orderId),
+            date: o.orderDate?.split(' ')[0] || '',
+            customerName: o.customerName || '',
+            reference: o.orderBankReference || '',
+            orderNumber: String(o.orderId),
+            amount: parseFloat(o.amountTotalFee) || 0,
+            status: o.reconciliationStatus === 'unmatched' ? 'unmatched' : 
+                   o.reconciliationStatus === 'suggested_match' ? 'suggested' : 'matched',
+            matchedBankIds: o.transactionIds || undefined,
+            suggestedMatchId: o.transactionIds?.[0] || undefined
+          }));
+          setRemittances(transformedRemittances);
+        }
+        
+        setShowSuggestions(true);
+      }
+    } catch (error) {
+      console.error('Failed to run suggestions:', error);
+    } finally {
+      setIsRunningSuggestions(false);
+    }
   };
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -1127,9 +1191,28 @@ export default function ReconciliationPage() {
                   </>
                 )}
              </Button>
-             <Button size="sm" variant="outline" className="h-8 text-xs gap-2">
-                <Sparkles className="w-3.5 h-3.5" />
-                SUGGESTIONS
+             <Button 
+                size="sm" 
+                variant={isRunningSuggestions ? "secondary" : "outline"}
+                className={cn(
+                  "h-8 text-xs gap-2 min-w-[130px] transition-all duration-300",
+                  isRunningSuggestions && "text-muted-foreground bg-muted cursor-not-allowed"
+                )}
+                onClick={handleRunSuggestions}
+                disabled={isRunningSuggestions}
+                data-testid="button-run-suggestions"
+              >
+                {isRunningSuggestions ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    MATCHING...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-3.5 h-3.5" />
+                    SUGGESTIONS
+                  </>
+                )}
              </Button>
              <Link href="/reconciled">
                <Button 
