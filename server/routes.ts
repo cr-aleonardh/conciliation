@@ -213,6 +213,29 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/reconcile-batch", async (req, res) => {
+    try {
+      const schema = z.object({
+        matches: z.array(z.object({
+          orderId: z.number(),
+          transactionHashes: z.array(z.string())
+        }))
+      });
+      const { matches } = schema.parse(req.body);
+      const result = await storage.reconcileBatch(matches);
+      res.json({ 
+        success: true, 
+        message: `Reconciliation completed with batch ID ${result.batchId}`,
+        batchId: result.batchId
+      });
+    } catch (error: any) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   // Bank File Upload - Process directly in Node.js
   app.post("/api/upload-bank-file", upload.single('file'), async (req, res) => {
     try {

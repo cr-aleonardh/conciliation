@@ -32,6 +32,7 @@ export interface IStorage {
   matchTransactionToOrder(transactionHash: string, orderId: number, status: string): Promise<void>;
   unmatchTransaction(transactionHash: string): Promise<void>;
   reconcileMatches(transactionHashes: string[], orderIds: number[]): Promise<void>;
+  reconcileBatch(matches: { orderId: number; transactionHashes: string[] }[]): Promise<{ batchId: number }>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -232,6 +233,57 @@ export class DatabaseStorage implements IStorage {
           })
           .where(inArray(orders.orderId, orderIds));
       }
+    });
+  }
+
+  async reconcileBatch(matches: { orderId: number; transactionHashes: string[] }[]): Promise<{ batchId: number }> {
+    return await db.transaction(async (tx: any) => {
+      const now = new Date().toISOString();
+      
+      // Get the next batch_id (max existing + 1, or 1 if none)
+      const maxBatchResult = await tx
+        .select({ maxBatch: sql<number>`COALESCE(MAX(batch_id), 0)` })
+        .from(bankTransactions);
+      const maxOrderBatchResult = await tx
+        .select({ maxBatch: sql<number>`COALESCE(MAX(batch_id), 0)` })
+        .from(orders);
+      
+      const maxBatch = Math.max(
+        maxBatchResult[0]?.maxBatch || 0,
+        maxOrderBatchResult[0]?.maxBatch || 0
+      );
+      const newBatchId = maxBatch + 1;
+      
+      // Process each match group
+      for (const match of matches) {
+        const { orderId, transactionHashes } = match;
+        
+        // Update all transactions in this group
+        if (transactionHashes.length > 0) {
+          await tx
+            .update(bankTransactions)
+            .set({ 
+              reconciliationStatus: 'reconciled',
+              reconciledAt: now,
+              batchId: newBatchId,
+              orderId: orderId
+            })
+            .where(inArray(bankTransactions.transactionHash, transactionHashes));
+        }
+        
+        // Update the order
+        await tx
+          .update(orders)
+          .set({ 
+            reconciliationStatus: 'reconciled',
+            reconciledAt: now,
+            batchId: newBatchId,
+            transactionIds: transactionHashes
+          })
+          .where(eq(orders.orderId, orderId));
+      }
+      
+      return { batchId: newBatchId };
     });
   }
 }
