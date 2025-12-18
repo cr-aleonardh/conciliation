@@ -1087,6 +1087,25 @@ export default function ReconciliationPage() {
                   RECONCILED
                </Button>
              </Link>
+             <Button 
+               size="sm" 
+               className="h-8 text-xs gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
+               onClick={handleReconcile}
+               disabled={isReconciling || remittances.filter(r => r.status === 'matched').length === 0}
+               data-testid="button-reconcile-header"
+             >
+                {isReconciling ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    RECONCILING...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    RECONCILE
+                  </>
+                )}
+             </Button>
           </div>
         </div>
 
@@ -1462,17 +1481,6 @@ export default function ReconciliationPage() {
                          Matched History
                        </span>
                        <div className="flex items-center gap-3">
-                         {matchedGroups.length > 0 && (
-                            <Button 
-                              size="sm" 
-                              className="h-5 text-[10px] px-2 font-bold tracking-wider"
-                              onClick={handleReconcile}
-                              disabled={isReconciling}
-                              data-testid="button-reconcile"
-                            >
-                               {isReconciling ? 'RECONCILING...' : 'RECONCILE'}
-                            </Button>
-                         )}
                          <span className="text-xs text-muted-foreground">{matchedGroups.length} groups</span>
                        </div>
                     </div>
