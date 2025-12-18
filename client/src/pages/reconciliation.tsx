@@ -574,7 +574,8 @@ export default function ReconciliationPage() {
             orderNumber: String(o.orderId),
             amount: parseFloat(o.amountTotalFee) || 0,
             status: o.reconciliationStatus === 'unmatched' ? 'unmatched' : 
-                   o.reconciliationStatus === 'suggested_match' ? 'suggested' : 'matched'
+                   o.reconciliationStatus === 'suggested_match' ? 'suggested' : 'matched',
+            matchedBankIds: o.transactionIds || undefined
           }));
           setRemittances(transformedRemittances);
         }
@@ -722,7 +723,8 @@ export default function ReconciliationPage() {
             orderNumber: String(o.orderId),
             amount: parseFloat(o.amountTotalFee) || 0,
             status: o.reconciliationStatus === 'unmatched' ? 'unmatched' : 
-                   o.reconciliationStatus === 'suggested_match' ? 'suggested' : 'matched'
+                   o.reconciliationStatus === 'suggested_match' ? 'suggested' : 'matched',
+            matchedBankIds: o.transactionIds || undefined
           }));
           setRemittances(transformedRemittances);
         }
@@ -806,16 +808,29 @@ export default function ReconciliationPage() {
   };
 
   // Unmatch Logic
-  const handleUnmatch = (remitId: string, bankIds: string[]) => {
-    // Update bank transactions
-    setBankTransactions(prev => prev.map(t => 
-      bankIds.includes(t.id) ? { ...t, status: 'unmatched' } : t
-    ));
-    
-    // Update remittance
-    setRemittances(prev => prev.map(r => 
-      r.id === remitId ? { ...r, status: 'unmatched', matchedBankIds: undefined } : r
-    ));
+  const handleUnmatch = async (remitId: string, bankIds: string[]) => {
+    try {
+      // Call API to unmatch each transaction
+      for (const transactionHash of bankIds) {
+        await fetch('/api/unmatch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ transactionHash })
+        });
+      }
+      
+      // Update bank transactions
+      setBankTransactions(prev => prev.map(t => 
+        bankIds.includes(t.id) ? { ...t, status: 'unmatched' } : t
+      ));
+      
+      // Update remittance
+      setRemittances(prev => prev.map(r => 
+        r.id === remitId ? { ...r, status: 'unmatched', matchedBankIds: undefined } : r
+      ));
+    } catch (error) {
+      console.error('Failed to unmatch:', error);
+    }
   };
 
   // Reconcile Logic - finalize all matched items
