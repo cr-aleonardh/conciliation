@@ -236,6 +236,57 @@ export async function registerRoutes(
     }
   });
 
+  // Export reconciliation to XLS file
+  app.post("/api/export-reconciliation", async (req, res) => {
+    try {
+      const schema = z.object({
+        orderIds: z.array(z.number())
+      });
+      const { orderIds } = schema.parse(req.body);
+      
+      if (orderIds.length === 0) {
+        return res.status(400).json({ message: "No order IDs provided" });
+      }
+      
+      const pythonProcess = spawn("python3", ["scripts/export_reconciliation.py"], {
+        env: process.env,
+        cwd: process.cwd()
+      });
+      
+      const chunks: Buffer[] = [];
+      let stderr = "";
+      
+      pythonProcess.stdout.on("data", (data) => {
+        chunks.push(Buffer.from(data));
+      });
+      
+      pythonProcess.stderr.on("data", (data) => {
+        stderr += data.toString();
+      });
+      
+      pythonProcess.stdin.write(JSON.stringify({ orderIds }));
+      pythonProcess.stdin.end();
+      
+      pythonProcess.on("close", (code) => {
+        if (code !== 0) {
+          console.error("Export script failed:", stderr);
+          return res.status(500).json({ message: "Failed to generate export file" });
+        }
+        
+        const xlsBuffer = Buffer.concat(chunks);
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', 'attachment; filename=reconciliation.xlsx');
+        res.send(xlsBuffer);
+      });
+      
+    } catch (error: any) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   // Get reconciled records grouped by batch
   app.get("/api/reconciled", async (req, res) => {
     try {
