@@ -908,24 +908,44 @@ export default function ReconciliationPage() {
   };
 
   // Matching Logic
-  const handleMatch = useCallback(() => {
+  const handleMatch = useCallback(async () => {
     if (selectedBankIds.size === 0 || selectedRemitIds.size === 0) return;
 
-    // Mark items as matched
-    setBankTransactions(prev => prev.map(t => 
-      selectedBankIds.has(t.id) ? { ...t, status: 'matched' } : t
-    ));
-    setRemittances(prev => prev.map(r => 
-      selectedRemitIds.has(r.id) ? { 
-        ...r, 
-        status: 'matched',
-        matchedBankIds: Array.from(selectedBankIds)
-      } : r
-    ));
+    const orderId = parseInt(Array.from(selectedRemitIds)[0]);
+    const transactionHashes = Array.from(selectedBankIds);
+    
+    try {
+      // Call API to persist each match with 'temporarily_matched' status
+      for (const transactionHash of transactionHashes) {
+        await fetch('/api/match', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            transactionHash,
+            orderId,
+            status: 'temporarily_matched'
+          })
+        });
+      }
+      
+      // Update local state to reflect the match
+      setBankTransactions(prev => prev.map(t => 
+        selectedBankIds.has(t.id) ? { ...t, status: 'matched' } : t
+      ));
+      setRemittances(prev => prev.map(r => 
+        selectedRemitIds.has(r.id) ? { 
+          ...r, 
+          status: 'matched',
+          matchedBankIds: Array.from(selectedBankIds)
+        } : r
+      ));
 
-    // Clear selection
-    setSelectedBankIds(new Set());
-    setSelectedRemitIds(new Set());
+      // Clear selection
+      setSelectedBankIds(new Set());
+      setSelectedRemitIds(new Set());
+    } catch (error) {
+      console.error('Failed to save match:', error);
+    }
   }, [selectedBankIds, selectedRemitIds]);
 
   // Keyboard Shortcut
