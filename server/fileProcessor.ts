@@ -54,7 +54,8 @@ function normalizeText(text: string): string {
     .toUpperCase()
     .replace(/\s+/g, ' ')
     .trim();
-  return result.replace(/[^\x00-\x7F]/g, '');
+  result = result.replace(/[^\x00-\x7F]/g, '');
+  return result.replace(/[^A-Z ]/g, '');
 }
 
 function extractReference(text: string): string | null {
