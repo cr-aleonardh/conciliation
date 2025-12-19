@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Export reconciliation data to XLS file.
-Reads order IDs from stdin (JSON format) and outputs XLS to stdout.
+Export reconciliation data to XLSX file.
+Reads order IDs from stdin (JSON format) and outputs XLSX to stdout.
 """
 import os
 import sys

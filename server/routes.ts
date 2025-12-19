@@ -236,7 +236,7 @@ export async function registerRoutes(
     }
   });
 
-  // Export reconciliation to XLS file
+  // Export reconciliation to XLSX file
   app.post("/api/export-reconciliation", async (req, res) => {
     try {
       const schema = z.object({
