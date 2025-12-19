@@ -32,12 +32,14 @@ def normalize_payer_sender(name):
     """
     Normalize payer/sender name:
     - Remove accents, convert to ASCII
+    - Strip punctuation (apostrophes, quotes, periods, commas)
     - Uppercase
     - Single spaces
     """
     if pd.isna(name) or name is None:
         return ""
     name = normalize_text_ascii(str(name))
+    name = re.sub(r"['\"`.,;:!?()\\-]", "", name)
     name = name.upper()
     name = ' '.join(name.split())
     return name

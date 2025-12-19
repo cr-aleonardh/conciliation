@@ -7,6 +7,7 @@ Finds potential matches between bank transactions and orders using:
 """
 
 import os
+import re
 import sys
 from datetime import datetime
 import psycopg2
@@ -57,11 +58,21 @@ def check_reference_match(bank_ref, order_ref):
         return False
     return bank_ref.strip().lower() == order_ref.strip().lower()
 
+def normalize_name(name):
+    """Normalize name by stripping punctuation and extra whitespace"""
+    if not name:
+        return ""
+    name = re.sub(r"['\"`.,;:!?()\\-]", "", str(name))
+    name = ' '.join(name.strip().lower().split())
+    return name
+
 def check_name_match(bank_name, order_name, threshold=70):
     """Check if names match using fuzzy matching"""
     if not bank_name or not order_name:
         return 0
-    score = fuzz.ratio(bank_name.strip().lower(), order_name.strip().lower())
+    bank_normalized = normalize_name(bank_name)
+    order_normalized = normalize_name(order_name)
+    score = fuzz.ratio(bank_normalized, order_normalized)
     return score
 
 def run_suggestions():
