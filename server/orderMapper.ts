@@ -116,9 +116,14 @@ export interface MapResult {
   errors: string[];
 }
 
-export function mapAndValidateOrders(rawOrders: unknown[]): MapResult {
+export interface MapOptions {
+  skipStatusFilter?: boolean;
+}
+
+export function mapAndValidateOrders(rawOrders: unknown[], options: MapOptions = {}): MapResult {
   const validOrders: InsertOrder[] = [];
   const errors: string[] = [];
+  const { skipStatusFilter = false } = options;
   
   for (const raw of rawOrders) {
     try {
@@ -132,9 +137,9 @@ export function mapAndValidateOrders(rawOrders: unknown[]): MapResult {
       
       const apiOrder = parsed.data;
       
-      // Only include orders with status 'H'
+      // Only include orders with status 'H' (unless skipStatusFilter is true)
       const status = apiOrder.status?.charAt(0);
-      if (status !== 'H') {
+      if (!skipStatusFilter && status !== 'H') {
         continue;
       }
       
