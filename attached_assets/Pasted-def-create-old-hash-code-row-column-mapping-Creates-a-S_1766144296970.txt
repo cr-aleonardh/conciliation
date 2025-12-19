@@ -1,0 +1,57 @@
+def create_old_hash_code(row, column_mapping):
+    """
+    Creates a SHA256 hash that mimics PROGRAM 2 exactly.
+    - Function renamed from 'create_transaction_hash' to 'create_old_hash_code'.
+    - Structure: numpy array string of [Date, Payer, Description, Credit].
+    - Date format: %m/%d/%Y.
+    - Credit: Float.
+    """
+    
+    # 1. DATE: Program 2 converts to %m/%d/%Y before hashing
+    raw_date = row.get(column_mapping.get('date'))
+    iso_date = parse_date(raw_date) # Helper parses to YYYY-MM-DD
+    final_date = None
+    
+    if iso_date:
+        try:
+            # Convert ISO YYYY-MM-DD back to MM/DD/YYYY to match Program 2
+            dt_obj = datetime.strptime(iso_date, '%Y-%m-%d')
+            final_date = dt_obj.strftime('%m/%d/%Y')
+        except ValueError:
+            final_date = str(iso_date)
+    else:
+        final_date = np.nan
+
+    # 2. PAYER & DESCRIPTION: 
+    # Program 2 hashes these raw (before cleaning), so we take them as-is.
+    payer_col = column_mapping.get('payer')
+    payer = row[payer_col] if payer_col in row.index and pd.notna(row[payer_col]) else np.nan
+    
+    desc_col = column_mapping.get('description')
+    description = row[desc_col] if desc_col in row.index and pd.notna(row[desc_col]) else np.nan
+
+    # 3. CREDITS: 
+    # Program 2 loads Excel natively (Credits are floats like 150.0).
+    # Program 1 loads as strings. We must force float conversion to match.
+    credit_col = column_mapping.get('credits')
+    credit_val = 0.0
+    if credit_col in row.index and pd.notna(row[credit_col]):
+        try:
+            # Clean string formatting (remove commas/symbols)
+            clean_val = str(row[credit_col]).replace(',', '').replace('$', '').strip()
+            credit_val = float(clean_val)
+        except ValueError:
+            credit_val = np.nan
+    else:
+        credit_val = np.nan
+
+    # 4. CONSTRUCT ARRAY
+    # Order matches the columns remaining in Program 2 after dropping 'Balance'
+    row_values = [final_date, payer, description, credit_val]
+
+    # 5. HASH
+    # Mimic: hashlib.sha256(str(row.values).encode()).hexdigest()
+    # We use numpy to generate the string representation (e.g. "['01/01/2023' 'PAYER' ...]")
+    array_str = str(np.array(row_values, dtype=object))
+    
+    return hashlib.sha256(array_str.encode('utf-8')).hexdigest()

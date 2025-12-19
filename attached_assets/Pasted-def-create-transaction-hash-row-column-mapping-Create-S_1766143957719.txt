@@ -1,0 +1,59 @@
+def create_transaction_hash(row, column_mapping):
+    """
+    Create SHA256 hash strictly matching Program 2's logic.
+    Structure: numpy array string of [Date, Payer, Description, Credit]
+    Date format: %m/%d/%Y
+    Credit: Float
+    """
+    
+    # 1. DATE: Program 2 converts to %m/%d/%Y before hashing
+    # parse_date returns YYYY-MM-DD, so we must reformat it
+    raw_date = row.get(column_mapping.get('date'))
+    iso_date = parse_date(raw_date)
+    final_date = None
+    
+    if iso_date:
+        try:
+            # Convert ISO YYYY-MM-DD back to object to format as MM/DD/YYYY
+            dt_obj = datetime.strptime(iso_date, '%Y-%m-%d')
+            final_date = dt_obj.strftime('%m/%d/%Y')
+        except ValueError:
+            final_date = str(iso_date)
+    else:
+        # If date is missing, Program 2 usually filters it out, 
+        # but if it slipped through, it would be NaT/NaN.
+        final_date = np.nan
+
+    # 2. PAYER & DESCRIPTION: Raw strings (Program 2 cleans these AFTER hashing)
+    # If the value is missing/NaN, Program 2 (Pandas) sees nan (float), not empty string.
+    payer_col = column_mapping.get('payer')
+    payer = row[payer_col] if payer_col in row.index and pd.notna(row[payer_col]) else np.nan
+    
+    desc_col = column_mapping.get('description')
+    description = row[desc_col] if desc_col in row.index and pd.notna(row[desc_col]) else np.nan
+
+    # 3. CREDITS: Program 2 loads Excel as Float/Int. Program 1 loads as string.
+    # We must convert to float to match the string representation of a number.
+    credit_col = column_mapping.get('credits')
+    credit_val = 0.0
+    if credit_col in row.index and pd.notna(row[credit_col]):
+        try:
+            # Clean string formatting (remove commas/symbols)
+            clean_val = str(row[credit_col]).replace(',', '').replace('$', '').strip()
+            credit_val = float(clean_val)
+        except ValueError:
+            credit_val = np.nan
+    else:
+        credit_val = np.nan
+
+    # 4. CONSTRUCT ARRAY
+    # Program 2 Order (after drops/renames): [Date, Payee, Description, Credit]
+    # Note: We exclude 'Balance' as Program 2 drops it.
+    row_values = [final_date, payer, description, credit_val]
+
+    # 5. HASH
+    # Mimic: hashlib.sha256(str(row.values).encode()).hexdigest()
+    # We use dtype=object to ensure the string representation matches Pandas mixed types
+    array_str = str(np.array(row_values, dtype=object))
+    
+    return hashlib.sha256(array_str.encode('utf-8')).hexdigest()
