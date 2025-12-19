@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Link } from 'wouter';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, ArrowRightLeft, X, RefreshCw, Layers, Keyboard, Eye, EyeOff, CheckCircle2, ArrowUpDown, ArrowUp, ArrowDown, Sparkles, Check, ThumbsUp, ThumbsDown, XCircle, History, GripHorizontal, Unlink, Upload, DownloadCloud, ChevronDown, ChevronRight } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 export interface BankTransaction {
   id: string;
@@ -490,6 +491,7 @@ const RemittanceRow = ({
 // --- Main Page ---
 
 export default function ReconciliationPage() {
+  const { toast } = useToast();
   const [bankTransactions, setBankTransactions] = useState<BankTransaction[]>([]);
   const [remittances, setRemittances] = useState<Remittance[]>([]);
   
@@ -660,9 +662,33 @@ export default function ReconciliationPage() {
         }
         
         setShowSuggestions(true);
+        
+        const count = result.suggestionsCount || 0;
+        if (count > 0) {
+          toast({
+            title: "Matches found",
+            description: `Found ${count} potential match${count === 1 ? '' : 'es'}`,
+          });
+        } else {
+          toast({
+            title: "No matches found",
+            description: "No potential matches were identified",
+          });
+        }
+      } else {
+        toast({
+          title: "Error",
+          description: result.message || "Failed to run matching",
+          variant: "destructive",
+        });
       }
     } catch (error) {
       console.error('Failed to run suggestions:', error);
+      toast({
+        title: "Error",
+        description: "Failed to run matching. Please try again.",
+        variant: "destructive",
+      });
     } finally {
       setIsRunningSuggestions(false);
     }
