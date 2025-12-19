@@ -125,6 +125,61 @@ function generateHash(row: Record<string, any>, headers: string[]): string {
   return createHash('sha256').update(hashString).digest('hex').substring(0, 16);
 }
 
+function generateOldHash(row: Record<string, any>, headers: string[]): string {
+  const dateCol = findColumn(headers, 'date');
+  const payerCol = findColumn(headers, 'payerName');
+  const descCol = findColumn(headers, 'description');
+  const creditCol = findColumn(headers, 'credits');
+  
+  let finalDate: string = 'nan';
+  if (dateCol && row[dateCol]) {
+    const isoDate = parseDate(row[dateCol]);
+    if (isoDate && isoDate !== '') {
+      try {
+        const parts = isoDate.split('-');
+        if (parts.length === 3) {
+          finalDate = `${parts[1]}/${parts[2]}/${parts[0]}`;
+        }
+      } catch {
+        finalDate = isoDate;
+      }
+    }
+  }
+  
+  let payer: string | number = 'nan';
+  if (payerCol && row[payerCol] != null && row[payerCol] !== '') {
+    payer = String(row[payerCol]);
+  }
+  
+  let description: string | number = 'nan';
+  if (descCol && row[descCol] != null && row[descCol] !== '') {
+    description = String(row[descCol]);
+  }
+  
+  let creditVal: number | string = 'nan';
+  if (creditCol && row[creditCol] != null && row[creditCol] !== '') {
+    const cleanVal = String(row[creditCol]).replace(/,/g, '').replace(/\$/g, '').trim();
+    const parsed = parseFloat(cleanVal);
+    if (!isNaN(parsed)) {
+      creditVal = parsed;
+    }
+  }
+  
+  const arrayStr = `[${formatNumpyValue(finalDate)} ${formatNumpyValue(payer)} ${formatNumpyValue(description)} ${formatNumpyValue(creditVal)}]`;
+  
+  return createHash('sha256').update(arrayStr, 'utf-8').digest('hex');
+}
+
+function formatNumpyValue(val: string | number): string {
+  if (val === 'nan') {
+    return 'nan';
+  }
+  if (typeof val === 'number') {
+    return String(val);
+  }
+  return `'${val}'`;
+}
+
 export async function processUploadedFile(buffer: Buffer, filename: string): Promise<{
   success: boolean;
   message: string;
@@ -220,12 +275,14 @@ export async function processUploadedFile(buffer: Buffer, filename: string): Pro
       }
       
       const hash = generateHash(row, headers);
+      const oldHash = generateOldHash(row, headers);
       const payerName = payerCol ? normalizeText(row[payerCol]) : '';
       const description = descCol ? normalizeText(row[descCol]) : '';
       const reference = extractReference(description) || extractReference(payerName);
       
       transactions.push({
         transactionHash: hash,
+        oldHash: oldHash,
         transactionDate: parseDate(row[dateCol]),
         payerSender: payerName,
         description: description,
