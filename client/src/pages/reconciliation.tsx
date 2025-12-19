@@ -523,6 +523,7 @@ export default function ReconciliationPage() {
 
   // Fetch Orders State
   const [isFetchingOrders, setIsFetchingOrders] = useState(false);
+  const [isFetchingAllOrders, setIsFetchingAllOrders] = useState(false);
   const [fetchStatus, setFetchStatus] = useState<{ type: 'success' | 'error', message: string } | null>(null);
   
   // Suggestions State
@@ -607,6 +608,60 @@ export default function ReconciliationPage() {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const handleFetchAllOrders = async () => {
+    if (isFetchingAllOrders) return;
+    
+    setIsFetchingAllOrders(true);
+    setFetchStatus(null);
+    
+    try {
+      const response = await fetch('/api/fetch-orders-all', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        toast({
+          title: "All orders fetched",
+          description: `Inserted: ${result.inserted}, Updated: ${result.updated}`,
+        });
+        // Refresh orders after successful fetch
+        const ordersResponse = await fetch('/api/orders');
+        if (ordersResponse.ok) {
+          const orders = await ordersResponse.json();
+          const transformedRemittances: Remittance[] = orders.map((o: any) => ({
+            id: String(o.orderId),
+            date: o.orderDate?.split(' ')[0] || '',
+            customerName: o.customerName || '',
+            reference: o.orderBankReference || '',
+            orderNumber: String(o.orderId),
+            amount: parseFloat(o.amountTotalFee) || 0,
+            status: o.reconciliationStatus === 'unmatched' ? 'unmatched' : 
+                   o.reconciliationStatus === 'suggested_match' ? 'suggested' : 'matched',
+            matchedBankIds: o.transactionIds || undefined
+          }));
+          setRemittances(transformedRemittances);
+        }
+      } else {
+        toast({
+          title: "Error",
+          description: result.message || 'Failed to fetch all orders',
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: 'Failed to fetch all orders. Please try again.',
+        variant: "destructive",
+      });
+    } finally {
+      setIsFetchingAllOrders(false);
+    }
   };
 
   const handleRunSuggestions = async () => {
@@ -1214,6 +1269,29 @@ export default function ReconciliationPage() {
                   <>
                     <DownloadCloud className="w-3.5 h-3.5" />
                     ORDERS FROM API
+                  </>
+                )}
+             </Button>
+             <Button 
+                size="sm" 
+                variant={isFetchingAllOrders ? "secondary" : "outline"}
+                className={cn(
+                  "h-8 text-xs gap-2 min-w-[160px] transition-all duration-300",
+                  isFetchingAllOrders && "text-muted-foreground bg-muted cursor-not-allowed"
+                )}
+                onClick={handleFetchAllOrders}
+                disabled={isFetchingAllOrders}
+                data-testid="button-fetch-all-orders"
+              >
+                {isFetchingAllOrders ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    FETCHING...
+                  </>
+                ) : (
+                  <>
+                    <DownloadCloud className="w-3.5 h-3.5" />
+                    FETCH ALL ORDERS
                   </>
                 )}
              </Button>

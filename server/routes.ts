@@ -414,6 +414,105 @@ export async function registerRoutes(
     }
   });
 
+  // Fetch ALL Orders from Curiara API (no status filter)
+  app.post("/api/fetch-orders-all", async (req, res) => {
+    try {
+      console.log("Starting Python script to fetch ALL orders (no status filter)...");
+      
+      const pythonProcess = spawn("python3", ["scripts/fetch_orders.py"], {
+        env: process.env,
+        cwd: process.cwd()
+      });
+      
+      let stdout = "";
+      let stderr = "";
+      
+      pythonProcess.stdout.on("data", (data) => {
+        stdout += data.toString();
+      });
+      
+      pythonProcess.stderr.on("data", (data) => {
+        stderr += data.toString();
+        console.log("Python:", data.toString().trim());
+      });
+      
+      pythonProcess.on("close", async (code) => {
+        if (code !== 0) {
+          console.error("Python script failed with code:", code);
+          console.error("stderr:", stderr);
+          
+          try {
+            const result = JSON.parse(stdout);
+            return res.status(500).json(result);
+          } catch {
+            return res.status(500).json({
+              success: false,
+              message: `Python script failed with code ${code}: ${stderr || stdout}`
+            });
+          }
+        }
+        
+        try {
+          const pythonResult = JSON.parse(stdout);
+          
+          if (!pythonResult.success) {
+            return res.status(500).json(pythonResult);
+          }
+          
+          if (!Array.isArray(pythonResult.orders)) {
+            return res.status(500).json({
+              success: false,
+              message: "Invalid response from fetch script: orders is not an array"
+            });
+          }
+          
+          // Use skipStatusFilter: true to include all orders regardless of status
+          const { orders: ordersToUpsert, errors: validationErrors } = mapAndValidateOrders(pythonResult.orders, { skipStatusFilter: true });
+          
+          if (validationErrors.length > 0) {
+            console.warn(`Validation issues with ${validationErrors.length} orders:`, validationErrors.slice(0, 5));
+          }
+          
+          const dbResult = await storage.upsertOrders(ordersToUpsert);
+          
+          console.log(`Fetch ALL complete: ${pythonResult.message}, inserted: ${dbResult.inserted}, updated: ${dbResult.updated}`);
+          
+          res.json({
+            success: true,
+            message: `Fetched ALL orders (no status filter). Inserted: ${dbResult.inserted}, Updated: ${dbResult.updated}`,
+            inserted: dbResult.inserted,
+            updated: dbResult.updated,
+            totalPages: pythonResult.totalPages,
+            dateRange: pythonResult.dateRange
+          });
+          
+        } catch (parseError: any) {
+          console.error("Failed to process Python output:", parseError.message);
+          console.error("stdout:", stdout);
+          res.status(500).json({
+            success: false,
+            message: `Failed to process script output: ${parseError.message}`
+          });
+        }
+      });
+      
+      pythonProcess.on("error", (error) => {
+        console.error("Failed to start Python script:", error);
+        res.status(500).json({
+          success: false,
+          message: `Failed to start Python script: ${error.message}`
+        });
+      });
+      
+    } catch (error: any) {
+      console.error("Error fetching all orders:", error);
+      res.status(500).json({ 
+        success: false, 
+        message: `Error fetching all orders: ${error.message}` 
+      });
+    }
+  });
+
   // Run suggestion matching script
   app.post("/api/suggestions/run", async (req, res) => {
     try {
