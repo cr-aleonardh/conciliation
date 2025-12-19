@@ -5,6 +5,7 @@ import { z } from "zod";
 
 export const bankTransactions = pgTable("bank_transactions", {
   transactionHash: text("transaction_hash").primaryKey(),
+  oldHash: text("old_hash"),
   payerSender: text("payer_sender").notNull(),
   transactionDate: timestamp("transaction_date", { mode: 'string' }).notNull(),
   creditAmount: numeric("credit_amount", { precision: 12, scale: 2 }).notNull(),

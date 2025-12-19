@@ -6,6 +6,7 @@ from datetime import datetime
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import pandas as pd
+import numpy as np
 import psycopg2
 from psycopg2.extras import execute_values
 
@@ -132,6 +133,58 @@ def create_transaction_hash(row, column_mapping):
     hash_string = "|".join(hash_components)
     return hashlib.sha256(hash_string.encode('utf-8')).hexdigest()
 
+def create_old_hash_code(row, column_mapping):
+    """
+    Creates a SHA256 hash that mimics PROGRAM 2 exactly.
+    - Structure: numpy array string of [Date, Payer, Description, Credit].
+    - Date format: %m/%d/%Y.
+    - Credit: Float.
+    """
+    
+    # 1. DATE: Program 2 converts to %m/%d/%Y before hashing
+    raw_date = row.get(column_mapping.get('date'))
+    iso_date = parse_date(raw_date)
+    final_date = None
+    
+    if iso_date:
+        try:
+            dt_obj = datetime.strptime(iso_date, '%Y-%m-%d')
+            final_date = dt_obj.strftime('%m/%d/%Y')
+        except ValueError:
+            final_date = str(iso_date)
+    else:
+        final_date = np.nan
+
+    # 2. PAYER & DESCRIPTION: 
+    # Program 2 hashes these raw (before cleaning), so we take them as-is.
+    payer_col = column_mapping.get('payer')
+    payer = row[payer_col] if payer_col in row.index and pd.notna(row[payer_col]) else np.nan
+    
+    desc_col = column_mapping.get('description')
+    description = row[desc_col] if desc_col in row.index and pd.notna(row[desc_col]) else np.nan
+
+    # 3. CREDITS: 
+    # Program 2 loads Excel natively (Credits are floats like 150.0).
+    # Program 1 loads as strings. We must force float conversion to match.
+    credit_col = column_mapping.get('credits')
+    credit_val = 0.0
+    if credit_col in row.index and pd.notna(row[credit_col]):
+        try:
+            clean_val = str(row[credit_col]).replace(',', '').replace('$', '').strip()
+            credit_val = float(clean_val)
+        except ValueError:
+            credit_val = np.nan
+    else:
+        credit_val = np.nan
+
+    # 4. CONSTRUCT ARRAY
+    row_values = [final_date, payer, description, credit_val]
+
+    # 5. HASH
+    array_str = str(np.array(row_values, dtype=object))
+    
+    return hashlib.sha256(array_str.encode('utf-8')).hexdigest()
+
 def find_header_row(df):
     """
     Find the row containing the header with columns like 'Date', 'Payee/Sender', 'Description'.
@@ -206,6 +259,7 @@ def process_bank_file(file):
     column_mapping = {
         'date': date_col,
         'payer': payer_col,
+        'description': desc_col,
         'credits': credits_col,
         'balance': balance_col
     }
@@ -229,6 +283,7 @@ def process_bank_file(file):
                 continue
             
             transaction_hash = create_transaction_hash(row, column_mapping)
+            old_hash = create_old_hash_code(row, column_mapping)
             transaction_date = parse_date(row.get(date_col))
             
             if not transaction_date:
@@ -241,6 +296,7 @@ def process_bank_file(file):
             
             transaction = {
                 'transaction_hash': transaction_hash,
+                'old_hash': old_hash,
                 'payer_sender': payer_sender,
                 'transaction_date': transaction_date,
                 'credit_amount': credit_amount,
@@ -274,13 +330,14 @@ def insert_transactions(transactions):
             try:
                 cursor.execute("""
                     INSERT INTO bank_transactions 
-                    (transaction_hash, payer_sender, transaction_date, credit_amount, 
+                    (transaction_hash, old_hash, payer_sender, transaction_date, credit_amount, 
                      description, extracted_reference, match_reference_flag, 
                      match_name_score, reconciliation_status, imported_at)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
                     ON CONFLICT (transaction_hash) DO NOTHING
                 """, (
                     txn['transaction_hash'],
+                    txn['old_hash'],
                     txn['payer_sender'],
                     txn['transaction_date'],
                     txn['credit_amount'],
