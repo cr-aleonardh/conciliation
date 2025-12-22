@@ -52,10 +52,9 @@ function normalizeText(text: string): string {
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .toUpperCase()
-    .replace(/[^A-Z\s]/g, '')
     .replace(/\s+/g, ' ')
     .trim();
-  return result;
+  return result.replace(/[^\x00-\x7F]/g, '');
 }
 
 function extractReference(text: string): string | null {
