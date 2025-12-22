@@ -10,8 +10,10 @@ import { mapAndValidateOrders } from "./orderMapper";
 
 const upload = multer({ storage: multer.memoryStorage() });
 
-const AUTH_USERNAME = "curiara";
-const AUTH_PASSWORD = "6W9XECy6zfpCrU";
+const USERS = [
+  { username: "curiara", password: "6W9XECy6zfpCrU", isAdmin: false },
+  { username: "curiara_admin", password: "y47oZXU0dLReiV4", isAdmin: true }
+];
 
 function requireAuth(req: Request, res: Response, next: NextFunction) {
   if (req.session?.isAuthenticated) {
@@ -29,10 +31,12 @@ export async function registerRoutes(
   app.post("/api/login", (req, res) => {
     const { username, password } = req.body;
     
-    if (username === AUTH_USERNAME && password === AUTH_PASSWORD) {
+    const user = USERS.find(u => u.username === username && u.password === password);
+    if (user) {
       req.session.isAuthenticated = true;
       req.session.username = username;
-      res.json({ success: true, message: "Login successful" });
+      req.session.isAdmin = user.isAdmin;
+      res.json({ success: true, message: "Login successful", isAdmin: user.isAdmin });
     } else {
       res.status(401).json({ success: false, message: "Invalid credentials" });
     }
@@ -51,7 +55,8 @@ export async function registerRoutes(
   app.get("/api/auth/status", (req, res) => {
     res.json({ 
       isAuthenticated: req.session?.isAuthenticated || false,
-      username: req.session?.username || null
+      username: req.session?.username || null,
+      isAdmin: req.session?.isAdmin || false
     });
   });
 
