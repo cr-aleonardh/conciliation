@@ -38,19 +38,41 @@ def format_date_for_api(date: datetime) -> str:
     return date.strftime("%Y.%m.%d")
 
 
-def fetch_orders_from_api(api_user: str, api_password: str):
+def fetch_orders_from_api(api_user: str, api_password: str, custom_start_date: str = None, custom_end_date: str = None):
     """
     Fetch orders from Curiara API with pagination.
+    
+    Args:
+        api_user: API username
+        api_password: API password
+        custom_start_date: Optional start date in YYYY-MM-DD format
+        custom_end_date: Optional end date in YYYY-MM-DD format
     
     Returns tuple of (orders list, stats dict)
     """
     base_url = "https://apicuriara.azurewebsites.net/api/OrderBreakdown"
     
     today = datetime.now()
-    fixed_start = datetime(2025, 12, 13)
     
-    start_date = format_date_for_api(fixed_start)
-    end_date = format_date_for_api(today)
+    # Use custom dates if provided, otherwise use defaults
+    if custom_start_date:
+        try:
+            start_dt = datetime.strptime(custom_start_date, "%Y-%m-%d")
+        except ValueError:
+            start_dt = datetime(2025, 12, 13)
+    else:
+        start_dt = datetime(2025, 12, 13)
+    
+    if custom_end_date:
+        try:
+            end_dt = datetime.strptime(custom_end_date, "%Y-%m-%d")
+        except ValueError:
+            end_dt = today
+    else:
+        end_dt = today
+    
+    start_date = format_date_for_api(start_dt)
+    end_date = format_date_for_api(end_dt)
     
     all_orders = []
     current_page = 1
@@ -117,7 +139,16 @@ def main():
         api_user = get_env_or_fail("CURIARA_API_USER")
         api_password = get_env_or_fail("CURIARA_API_PASSWORD")
         
-        orders, stats = fetch_orders_from_api(api_user, api_password)
+        # Parse command-line arguments for custom dates
+        custom_start_date = None
+        custom_end_date = None
+        
+        if len(sys.argv) > 1:
+            custom_start_date = sys.argv[1] if sys.argv[1] != "null" else None
+        if len(sys.argv) > 2:
+            custom_end_date = sys.argv[2] if sys.argv[2] != "null" else None
+        
+        orders, stats = fetch_orders_from_api(api_user, api_password, custom_start_date, custom_end_date)
         
         result = {
             "success": True,

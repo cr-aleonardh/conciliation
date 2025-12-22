@@ -1,7 +1,8 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Link } from 'wouter';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, ArrowRightLeft, X, RefreshCw, Layers, Keyboard, Eye, EyeOff, CheckCircle2, ArrowUpDown, ArrowUp, ArrowDown, Sparkles, Check, ThumbsUp, ThumbsDown, XCircle, History, GripHorizontal, Unlink, Upload, DownloadCloud, ChevronDown, ChevronRight } from 'lucide-react';
+import { Search, ArrowRightLeft, X, RefreshCw, Layers, Keyboard, Eye, EyeOff, CheckCircle2, ArrowUpDown, ArrowUp, ArrowDown, Sparkles, Check, ThumbsUp, ThumbsDown, XCircle, History, GripHorizontal, Unlink, Upload, DownloadCloud, ChevronDown, ChevronRight, CalendarIcon } from 'lucide-react';
+import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 
 export interface BankTransaction {
@@ -37,6 +38,9 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 
 // --- Types ---
 
@@ -540,6 +544,11 @@ export default function ReconciliationPage({ isAdmin = false }: ReconciliationPa
   const [reconcileStatus, setReconcileStatus] = useState<{ type: 'success' | 'error', message: string } | null>(null);
   const [showReconcileConfirm, setShowReconcileConfirm] = useState(false);
 
+  // Fetch All Orders Modal State (Admin only)
+  const [showFetchAllModal, setShowFetchAllModal] = useState(false);
+  const [fetchAllStartDate, setFetchAllStartDate] = useState<Date | undefined>(undefined);
+  const [fetchAllEndDate, setFetchAllEndDate] = useState<Date | undefined>(new Date());
+
 
   useEffect(() => {
     if (fetchDataCooldown === null) return;
@@ -617,16 +626,22 @@ export default function ReconciliationPage({ isAdmin = false }: ReconciliationPa
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const handleFetchAllOrders = async () => {
+  const handleFetchAllOrders = async (startDate?: Date, endDate?: Date) => {
     if (isFetchingAllOrders) return;
     
     setIsFetchingAllOrders(true);
     setFetchStatus(null);
+    setShowFetchAllModal(false);
     
     try {
+      const body: { startDate?: string; endDate?: string } = {};
+      if (startDate) body.startDate = format(startDate, 'yyyy-MM-dd');
+      if (endDate) body.endDate = format(endDate, 'yyyy-MM-dd');
+      
       const response = await fetch('/api/fetch-orders-all', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
       });
       
       const result = await response.json();
@@ -1300,6 +1315,31 @@ export default function ReconciliationPage({ isAdmin = false }: ReconciliationPa
                   </>
                 )}
              </Button>
+             {isAdmin && (
+               <Button 
+                  size="sm" 
+                  variant={isFetchingAllOrders ? "secondary" : "outline"}
+                  className={cn(
+                    "h-8 text-xs gap-2 min-w-[160px] transition-all duration-300",
+                    isFetchingAllOrders && "text-muted-foreground bg-muted cursor-not-allowed"
+                  )}
+                  onClick={() => setShowFetchAllModal(true)}
+                  disabled={isFetchingAllOrders}
+                  data-testid="button-fetch-all-orders"
+                >
+                  {isFetchingAllOrders ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      FETCHING...
+                    </>
+                  ) : (
+                    <>
+                      <DownloadCloud className="w-3.5 h-3.5" />
+                      FETCH ALL ORDERS
+                    </>
+                  )}
+               </Button>
+             )}
              <Button 
                 size="sm" 
                 variant={isRunningSuggestions ? "secondary" : "outline"}
@@ -1786,6 +1826,81 @@ export default function ReconciliationPage({ isAdmin = false }: ReconciliationPa
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Fetch All Orders Modal (Admin Only) */}
+      <Dialog open={showFetchAllModal} onOpenChange={setShowFetchAllModal}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Fetch All Orders</DialogTitle>
+            <DialogDescription>
+              Select a date range to fetch orders from the API.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="startDate">Start Date</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !fetchAllStartDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {fetchAllStartDate ? format(fetchAllStartDate, "PPP") : "Select start date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={fetchAllStartDate}
+                    onSelect={setFetchAllStartDate}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="endDate">End Date</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !fetchAllEndDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {fetchAllEndDate ? format(fetchAllEndDate, "PPP") : "Select end date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={fetchAllEndDate}
+                    onSelect={setFetchAllEndDate}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowFetchAllModal(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={() => handleFetchAllOrders(fetchAllStartDate, fetchAllEndDate)}
+              disabled={!fetchAllStartDate}
+            >
+              Fetch Orders
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
     </div>
   );

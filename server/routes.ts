@@ -462,9 +462,13 @@ export async function registerRoutes(
   // Fetch ALL Orders from Curiara API (no status filter)
   app.post("/api/fetch-orders-all", async (req, res) => {
     try {
-      console.log("Starting Python script to fetch ALL orders (no status filter)...");
+      const { startDate, endDate } = req.body || {};
+      console.log(`Starting Python script to fetch ALL orders. startDate: ${startDate || 'default'}, endDate: ${endDate || 'default'}...`);
       
-      const pythonProcess = spawn("python3", ["scripts/fetch_orders.py"], {
+      // Pass dates as command-line arguments to Python script
+      const args = ["scripts/fetch_orders.py", startDate || "null", endDate || "null"];
+      
+      const pythonProcess = spawn("python3", args, {
         env: process.env,
         cwd: process.cwd()
       });
