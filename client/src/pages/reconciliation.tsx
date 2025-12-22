@@ -95,6 +95,38 @@ const MatchStatsDisplay = ({ stats }: { stats: { rValue: string, nValue: string,
   </div>
 );
 
+// Click to copy component for names
+const ClickToCopy = ({ text, className, children }: { text: string; className?: string; children: React.ReactNode }) => {
+  const [copied, setCopied] = useState(false);
+  
+  const handleCopy = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
+  };
+  
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span 
+          onClick={handleCopy}
+          className={cn("cursor-pointer hover:bg-muted/50 px-1 -mx-1 rounded transition-colors", className)}
+        >
+          {children}
+        </span>
+      </TooltipTrigger>
+      <TooltipContent side="top" className="text-xs">
+        {copied ? "Copied!" : "Click to copy"}
+      </TooltipContent>
+    </Tooltip>
+  );
+};
+
 // --- Components ---
 
 const SortButton = ({ 
@@ -166,7 +198,7 @@ const SuggestedMatchRow = ({
                </Badge>
                <MatchStatsDisplay stats={stats} />
             </div>
-            <span className="text-sm font-medium opacity-90">{bankTransaction.payee}</span>
+            <ClickToCopy text={bankTransaction.payee}><span className="text-sm font-medium opacity-90">{bankTransaction.payee}</span></ClickToCopy>
          </div>
          <AmountDisplay amount={bankTransaction.amount} type="bank" />
       </div>
@@ -182,7 +214,7 @@ const SuggestedMatchRow = ({
                <span className="text-xs font-mono text-muted-foreground/40">{remittance.orderNumber}</span>
                <MatchStatsDisplay stats={stats} />
             </div>
-            <span className="text-sm font-medium opacity-90">{remittance.customerName}</span>
+            <ClickToCopy text={remittance.customerName}><span className="text-sm font-medium opacity-90">{remittance.customerName}</span></ClickToCopy>
          </div>
          <AmountDisplay amount={remittance.amount} type="remit" />
       </div>
@@ -281,9 +313,9 @@ const MatchedGroupRow = ({
                     </Badge>
                     <MatchStatsDisplay stats={stats} />
                   </div>
-                  <span className="text-sm font-medium text-muted-foreground line-through decoration-muted-foreground/30">
+                  <ClickToCopy text={t.payee}><span className="text-sm font-medium text-muted-foreground line-through decoration-muted-foreground/30">
                     {t.payee}
-                  </span>
+                  </span></ClickToCopy>
                </div>
                <AmountDisplay amount={t.amount} type="bank" dimmed />
             </div>
@@ -311,9 +343,9 @@ const MatchedGroupRow = ({
                  {bankTransactions.length > 0 && <MatchStatsDisplay stats={calculateMatchStats(bankTransactions[0], remittance)} />}
               </div>
               <div>
-                 <span className="text-sm font-medium text-muted-foreground line-through decoration-muted-foreground/30">
+                 <ClickToCopy text={remittance.customerName}><span className="text-sm font-medium text-muted-foreground line-through decoration-muted-foreground/30">
                    {remittance.customerName}
-                 </span>
+                 </span></ClickToCopy>
               </div>
               {bankTransactions.length > 1 && (
                 <div className="flex items-center gap-2 text-xs text-match font-medium mt-1">
@@ -385,9 +417,9 @@ const TransactionRow = ({
           </Badge>
           {matchStats && <MatchStatsDisplay stats={matchStats} />}
         </div>
-        <span className={cn("text-base font-medium transition-colors", isMatched ? "text-muted-foreground line-through decoration-muted-foreground/30" : "text-foreground group-hover:text-primary")}>
+        <ClickToCopy text={data.payee}><span className={cn("text-base font-medium transition-colors", isMatched ? "text-muted-foreground line-through decoration-muted-foreground/30" : "text-foreground group-hover:text-primary")}>
           {data.payee}
-        </span>
+        </span></ClickToCopy>
       </div>
       <div className="text-right">
         <AmountDisplay amount={data.amount} type="bank" dimmed={isMatched} />
@@ -467,9 +499,9 @@ const RemittanceRow = ({
 
         {/* Bottom Line: Name */}
         <div>
-           <span className={cn("text-base font-medium transition-colors", isMatched ? "text-muted-foreground line-through decoration-muted-foreground/30" : "text-foreground group-hover:text-secondary")}>
+           <ClickToCopy text={data.customerName}><span className={cn("text-base font-medium transition-colors", isMatched ? "text-muted-foreground line-through decoration-muted-foreground/30" : "text-foreground group-hover:text-secondary")}>
              {data.customerName}
-           </span>
+           </span></ClickToCopy>
         </div>
 
         {/* Visual Expansion for Many-to-One */}
