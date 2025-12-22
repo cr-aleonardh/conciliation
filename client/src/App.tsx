@@ -9,27 +9,20 @@ import ReconciliationPage from "@/pages/reconciliation";
 import ReconciledPage from "@/pages/reconciled";
 import LoginPage from "@/pages/login";
 
-function Router() {
-  return (
-    <Switch>
-      <Route path="/" component={ReconciliationPage} />
-      <Route path="/reconciled" component={ReconciledPage} />
-      <Route component={NotFound} />
-    </Switch>
-  );
-}
-
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     fetch("/api/auth/status")
       .then((res) => res.json())
       .then((data) => {
         setIsAuthenticated(data.isAuthenticated);
+        setIsAdmin(data.isAdmin || false);
       })
       .catch(() => {
         setIsAuthenticated(false);
+        setIsAdmin(false);
       });
   }, []);
 
@@ -42,14 +35,18 @@ function App() {
   }
 
   if (!isAuthenticated) {
-    return <LoginPage onLogin={() => setIsAuthenticated(true)} />;
+    return <LoginPage onLogin={(admin: boolean) => { setIsAuthenticated(true); setIsAdmin(admin); }} />;
   }
 
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <Toaster />
-        <Router />
+        <Switch>
+          <Route path="/" component={() => <ReconciliationPage isAdmin={isAdmin} />} />
+          <Route path="/reconciled" component={ReconciledPage} />
+          <Route component={NotFound} />
+        </Switch>
       </TooltipProvider>
     </QueryClientProvider>
   );

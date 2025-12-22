@@ -492,7 +492,11 @@ const RemittanceRow = ({
 
 // --- Main Page ---
 
-export default function ReconciliationPage() {
+interface ReconciliationPageProps {
+  isAdmin?: boolean;
+}
+
+export default function ReconciliationPage({ isAdmin = false }: ReconciliationPageProps) {
   const { toast } = useToast();
   const [bankTransactions, setBankTransactions] = useState<BankTransaction[]>([]);
   const [remittances, setRemittances] = useState<Remittance[]>([]);
