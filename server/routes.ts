@@ -1,4 +1,4 @@
-import type { Express } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertBankTransactionSchema, insertOrderSchema } from "@shared/schema";
@@ -10,11 +10,51 @@ import { mapAndValidateOrders } from "./orderMapper";
 
 const upload = multer({ storage: multer.memoryStorage() });
 
+const AUTH_USERNAME = "curiara";
+const AUTH_PASSWORD = "6W9XECy6zfpCrU";
+
+function requireAuth(req: Request, res: Response, next: NextFunction) {
+  if (req.session?.isAuthenticated) {
+    next();
+  } else {
+    res.status(401).json({ message: "Unauthorized" });
+  }
+}
+
 export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
   
+  app.post("/api/login", (req, res) => {
+    const { username, password } = req.body;
+    
+    if (username === AUTH_USERNAME && password === AUTH_PASSWORD) {
+      req.session.isAuthenticated = true;
+      req.session.username = username;
+      res.json({ success: true, message: "Login successful" });
+    } else {
+      res.status(401).json({ success: false, message: "Invalid credentials" });
+    }
+  });
+
+  app.post("/api/logout", (req, res) => {
+    req.session.destroy((err) => {
+      if (err) {
+        res.status(500).json({ message: "Logout failed" });
+      } else {
+        res.json({ success: true, message: "Logged out" });
+      }
+    });
+  });
+
+  app.get("/api/auth/status", (req, res) => {
+    res.json({ 
+      isAuthenticated: req.session?.isAuthenticated || false,
+      username: req.session?.username || null
+    });
+  });
+
   // Bank Transactions Routes
   app.get("/api/bank-transactions", async (req, res) => {
     try {
