@@ -121,20 +121,31 @@ export default function AllTransactionsPage() {
   const reconciledCount = transactions.filter(t => t.reconciliationStatus === "reconciled").length;
   const unreconciledCount = transactions.filter(t => t.reconciliationStatus !== "reconciled").length;
 
+  const [copiedPayer, setCopiedPayer] = useState<string | null>(null);
+
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
-    return date.toLocaleDateString("en-US", { 
-      year: "numeric", 
-      month: "short", 
-      day: "numeric" 
-    });
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
   };
 
   const formatAmount = (amount: string) => {
-    return new Intl.NumberFormat("en-US", {
+    return new Intl.NumberFormat("de-DE", {
       style: "currency",
-      currency: "USD"
+      currency: "EUR"
     }).format(parseFloat(amount));
+  };
+
+  const handleCopyPayer = async (payerName: string) => {
+    try {
+      await navigator.clipboard.writeText(payerName);
+      setCopiedPayer(payerName);
+      setTimeout(() => setCopiedPayer(null), 1500);
+    } catch (err) {
+      console.error("Failed to copy:", err);
+    }
   };
 
   return (
@@ -306,8 +317,17 @@ export default function AllTransactionsPage() {
                         <TableCell className="text-slate-300" data-testid={`text-date-${transaction.transactionHash}`}>
                           {formatDate(transaction.transactionDate)}
                         </TableCell>
-                        <TableCell className="text-slate-100 font-medium max-w-xs truncate" data-testid={`text-payer-${transaction.transactionHash}`}>
-                          {transaction.payerSender}
+                        <TableCell 
+                          className="text-slate-100 font-medium max-w-xs truncate cursor-pointer hover:text-cyan-400 hover:underline transition-colors"
+                          onClick={() => handleCopyPayer(transaction.payerSender)}
+                          title="Click to copy"
+                          data-testid={`text-payer-${transaction.transactionHash}`}
+                        >
+                          {copiedPayer === transaction.payerSender ? (
+                            <span className="text-green-400">Copied!</span>
+                          ) : (
+                            transaction.payerSender
+                          )}
                         </TableCell>
                         <TableCell className="text-slate-300" data-testid={`text-reference-${transaction.transactionHash}`}>
                           {transaction.extractedReference || "-"}
