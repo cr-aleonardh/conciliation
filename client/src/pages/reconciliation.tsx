@@ -1144,12 +1144,13 @@ export default function ReconciliationPage() {
       
       // Update local state to reflect the match
       setBankTransactions(prev => prev.map(t => 
-        selectedBankIds.has(t.id) ? { ...t, status: 'matched' } : t
+        selectedBankIds.has(t.id) ? { ...t, status: 'matched', reconciliationStatus: 'temporarily_matched' } : t
       ));
       setRemittances(prev => prev.map(r => 
         selectedRemitIds.has(r.id) ? { 
           ...r, 
           status: 'matched',
+          reconciliationStatus: 'temporarily_matched',
           matchedBankIds: Array.from(selectedBankIds)
         } : r
       ));
