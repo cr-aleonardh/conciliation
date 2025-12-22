@@ -1006,12 +1006,12 @@ export default function ReconciliationPage() {
     }
   };
 
-  // Reconcile Logic - finalize all matched items
+  // Reconcile Logic - finalize all temporarily matched items
   const handleReconcile = async () => {
     if (isReconciling) return;
     
-    // Get all matched groups
-    const matchedRemits = remittances.filter(r => r.status === 'matched');
+    // Get only temporarily matched items (not already fully reconciled)
+    const matchedRemits = remittances.filter(r => r.reconciliationStatus === 'temporarily_matched');
     if (matchedRemits.length === 0) return;
     
     // Build matches array for API
