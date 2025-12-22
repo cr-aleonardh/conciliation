@@ -950,9 +950,23 @@ export default function ReconciliationPage() {
     }).filter((pair): pair is { remittance: Remittance, bankTransaction: BankTransaction } => pair !== null);
   }, [remittances, bankTransactions]);
 
-  const handleApproveSuggestion = (remitId: string, bankId: string) => {
-    setBankTransactions(prev => prev.map(t => t.id === bankId ? { ...t, status: 'matched' } : t));
-    setRemittances(prev => prev.map(r => r.id === remitId ? { ...r, status: 'matched', matchedBankIds: [bankId] } : r));
+  const handleApproveSuggestion = async (remitId: string, bankId: string) => {
+    try {
+      await fetch('/api/match', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          transactionHash: bankId,
+          orderId: parseInt(remitId),
+          status: 'temporarily_matched'
+        })
+      });
+      
+      setBankTransactions(prev => prev.map(t => t.id === bankId ? { ...t, status: 'matched', reconciliationStatus: 'temporarily_matched' } : t));
+      setRemittances(prev => prev.map(r => r.id === remitId ? { ...r, status: 'matched', reconciliationStatus: 'temporarily_matched', matchedBankIds: [bankId] } : r));
+    } catch (error) {
+      console.error('Failed to approve suggestion:', error);
+    }
   };
 
   const handleRejectSuggestion = (remitId: string, bankId: string) => {
