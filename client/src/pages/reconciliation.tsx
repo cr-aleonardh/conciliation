@@ -1297,29 +1297,6 @@ export default function ReconciliationPage() {
              </Button>
              <Button 
                 size="sm" 
-                variant={isFetchingAllOrders ? "secondary" : "outline"}
-                className={cn(
-                  "h-8 text-xs gap-2 min-w-[160px] transition-all duration-300",
-                  isFetchingAllOrders && "text-muted-foreground bg-muted cursor-not-allowed"
-                )}
-                onClick={handleFetchAllOrders}
-                disabled={isFetchingAllOrders}
-                data-testid="button-fetch-all-orders"
-              >
-                {isFetchingAllOrders ? (
-                  <>
-                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                    FETCHING...
-                  </>
-                ) : (
-                  <>
-                    <DownloadCloud className="w-3.5 h-3.5" />
-                    FETCH ALL ORDERS
-                  </>
-                )}
-             </Button>
-             <Button 
-                size="sm" 
                 variant={isRunningSuggestions ? "secondary" : "outline"}
                 className={cn(
                   "h-8 text-xs gap-2 min-w-[130px] transition-all duration-300",
