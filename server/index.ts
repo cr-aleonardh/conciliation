@@ -18,6 +18,7 @@ declare module "express-session" {
     isAuthenticated: boolean;
     username: string;
     isAdmin: boolean;
+    role: string;
   }
 }
 

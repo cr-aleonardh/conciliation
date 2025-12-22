@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Lock, User, AlertCircle } from "lucide-react";
 
 interface LoginPageProps {
-  onLogin: (isAdmin: boolean) => void;
+  onLogin: (isAdmin: boolean, role: string) => void;
 }
 
 export default function LoginPage({ onLogin }: LoginPageProps) {
@@ -30,7 +30,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
       const data = await response.json();
 
       if (response.ok && data.success) {
-        onLogin(data.isAdmin || false);
+        onLogin(data.isAdmin || false, data.role || "operator");
       } else {
         setError(data.message || "Invalid credentials");
       }

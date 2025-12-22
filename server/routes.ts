@@ -11,8 +11,9 @@ import { mapAndValidateOrders } from "./orderMapper";
 const upload = multer({ storage: multer.memoryStorage() });
 
 const USERS = [
-  { username: "curiara", password: "6W9XECy6zfpCrU", isAdmin: false },
-  { username: "curiara_admin", password: "y47oZXU0dLReiV4", isAdmin: true }
+  { username: "curiara", password: "6W9XECy6zfpCrU", isAdmin: false, role: "operator" },
+  { username: "curiara_admin", password: "y47oZXU0dLReiV4", isAdmin: true, role: "admin" },
+  { username: "viewer", password: "bPqQMX2aJrAzpf", isAdmin: false, role: "viewer" }
 ];
 
 function requireAuth(req: Request, res: Response, next: NextFunction) {
@@ -36,7 +37,8 @@ export async function registerRoutes(
       req.session.isAuthenticated = true;
       req.session.username = username;
       req.session.isAdmin = user.isAdmin;
-      res.json({ success: true, message: "Login successful", isAdmin: user.isAdmin });
+      req.session.role = user.role;
+      res.json({ success: true, message: "Login successful", isAdmin: user.isAdmin, role: user.role });
     } else {
       res.status(401).json({ success: false, message: "Invalid credentials" });
     }
@@ -56,7 +58,8 @@ export async function registerRoutes(
     res.json({ 
       isAuthenticated: req.session?.isAuthenticated || false,
       username: req.session?.username || null,
-      isAdmin: req.session?.isAdmin || false
+      isAdmin: req.session?.isAdmin || false,
+      role: req.session?.role || null
     });
   });
 

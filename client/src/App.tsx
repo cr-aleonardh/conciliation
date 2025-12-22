@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Switch, Route } from "wouter";
+import { Switch, Route, Redirect } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -7,11 +7,13 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
 import ReconciliationPage from "@/pages/reconciliation";
 import ReconciledPage from "@/pages/reconciled";
+import AllTransactionsPage from "@/pages/all-transactions";
 import LoginPage from "@/pages/login";
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [role, setRole] = useState<string>("operator");
 
   useEffect(() => {
     fetch("/api/auth/status")
@@ -19,10 +21,12 @@ function App() {
       .then((data) => {
         setIsAuthenticated(data.isAuthenticated);
         setIsAdmin(data.isAdmin || false);
+        setRole(data.role || "operator");
       })
       .catch(() => {
         setIsAuthenticated(false);
         setIsAdmin(false);
+        setRole("operator");
       });
   }, []);
 
@@ -35,7 +39,21 @@ function App() {
   }
 
   if (!isAuthenticated) {
-    return <LoginPage onLogin={(admin: boolean) => { setIsAuthenticated(true); setIsAdmin(admin); }} />;
+    return <LoginPage onLogin={(admin: boolean, userRole: string) => { setIsAuthenticated(true); setIsAdmin(admin); setRole(userRole); }} />;
+  }
+
+  if (role === "viewer") {
+    return (
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <Toaster />
+          <Switch>
+            <Route path="/all-transactions" component={AllTransactionsPage} />
+            <Route><Redirect to="/all-transactions" /></Route>
+          </Switch>
+        </TooltipProvider>
+      </QueryClientProvider>
+    );
   }
 
   return (
@@ -45,6 +63,7 @@ function App() {
         <Switch>
           <Route path="/" component={() => <ReconciliationPage isAdmin={isAdmin} />} />
           <Route path="/reconciled" component={ReconciledPage} />
+          <Route path="/all-transactions" component={AllTransactionsPage} />
           <Route component={NotFound} />
         </Switch>
       </TooltipProvider>
