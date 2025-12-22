@@ -47,9 +47,9 @@ def fetch_orders_from_api(api_user: str, api_password: str):
     base_url = "https://apicuriara.azurewebsites.net/api/OrderBreakdown"
     
     today = datetime.now()
-    three_days_ago = today - timedelta(days=3)
+    fixed_start = datetime(2025, 12, 15)
     
-    start_date = format_date_for_api(three_days_ago)
+    start_date = format_date_for_api(fixed_start)
     end_date = format_date_for_api(today)
     
     all_orders = []
