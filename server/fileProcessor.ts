@@ -277,9 +277,11 @@ export async function processUploadedFile(buffer: Buffer, filename: string): Pro
       
       const hash = generateHash(row, headers);
       const oldHash = generateOldHash(row, headers);
+      const rawDescription = descCol ? String(row[descCol] || '').toUpperCase() : '';
+      const rawPayerName = payerCol ? String(row[payerCol] || '').toUpperCase() : '';
+      const reference = extractReference(rawDescription) || extractReference(rawPayerName);
       const payerName = payerCol ? normalizeText(row[payerCol]) : '';
       const description = descCol ? normalizeText(row[descCol]) : '';
-      const reference = extractReference(description) || extractReference(payerName);
       
       transactions.push({
         transactionHash: hash,
