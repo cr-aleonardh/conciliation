@@ -548,6 +548,7 @@ export default function ReconciliationPage({ isAdmin = false }: ReconciliationPa
   const [showFetchAllModal, setShowFetchAllModal] = useState(false);
   const [fetchAllStartDate, setFetchAllStartDate] = useState<Date | undefined>(undefined);
   const [fetchAllEndDate, setFetchAllEndDate] = useState<Date | undefined>(new Date());
+  const [fetchAllStatus, setFetchAllStatus] = useState<"P" | "H">("P");
 
 
   useEffect(() => {
@@ -626,7 +627,7 @@ export default function ReconciliationPage({ isAdmin = false }: ReconciliationPa
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const handleFetchAllOrders = async (startDate?: Date, endDate?: Date) => {
+  const handleFetchAllOrders = async (startDate?: Date, endDate?: Date, status?: "P" | "H") => {
     if (isFetchingAllOrders) return;
     
     setIsFetchingAllOrders(true);
@@ -634,9 +635,10 @@ export default function ReconciliationPage({ isAdmin = false }: ReconciliationPa
     setShowFetchAllModal(false);
     
     try {
-      const body: { startDate?: string; endDate?: string } = {};
+      const body: { startDate?: string; endDate?: string; statusFilter?: string } = {};
       if (startDate) body.startDate = format(startDate, 'yyyy-MM-dd');
       if (endDate) body.endDate = format(endDate, 'yyyy-MM-dd');
+      if (status) body.statusFilter = status;
       
       const response = await fetch('/api/fetch-orders-all', {
         method: 'POST',
@@ -1887,13 +1889,25 @@ export default function ReconciliationPage({ isAdmin = false }: ReconciliationPa
                 </PopoverContent>
               </Popover>
             </div>
+            <div className="grid gap-2">
+              <Label htmlFor="status">Status Filter</Label>
+              <Select value={fetchAllStatus} onValueChange={(value: "P" | "H") => setFetchAllStatus(value)}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="P">Paid</SelectItem>
+                  <SelectItem value="H">Holding</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowFetchAllModal(false)}>
               Cancel
             </Button>
             <Button 
-              onClick={() => handleFetchAllOrders(fetchAllStartDate, fetchAllEndDate)}
+              onClick={() => handleFetchAllOrders(fetchAllStartDate, fetchAllEndDate, fetchAllStatus)}
               disabled={!fetchAllStartDate}
             >
               Fetch Orders
