@@ -11,6 +11,7 @@ export interface BankTransaction {
   reference: string;
   amount: number;
   status: 'unmatched' | 'matched' | 'suggested';
+  reconciliationStatus?: string;
   orderId?: number;
 }
 
@@ -22,6 +23,7 @@ export interface Remittance {
   orderNumber: string;
   amount: number;
   status: 'unmatched' | 'matched' | 'suggested';
+  reconciliationStatus?: string;
   matchedBankIds?: string[];
   suggestedMatchId?: string;
 }
@@ -584,6 +586,7 @@ export default function ReconciliationPage() {
             amount: parseFloat(o.amountTotalFee) || 0,
             status: o.reconciliationStatus === 'unmatched' ? 'unmatched' : 
                    o.reconciliationStatus === 'suggested_match' ? 'suggested' : 'matched',
+            reconciliationStatus: o.reconciliationStatus,
             matchedBankIds: o.transactionIds || undefined
           }));
           setRemittances(transformedRemittances);
@@ -642,6 +645,7 @@ export default function ReconciliationPage() {
             amount: parseFloat(o.amountTotalFee) || 0,
             status: o.reconciliationStatus === 'unmatched' ? 'unmatched' : 
                    o.reconciliationStatus === 'suggested_match' ? 'suggested' : 'matched',
+            reconciliationStatus: o.reconciliationStatus,
             matchedBankIds: o.transactionIds || undefined
           }));
           setRemittances(transformedRemittances);
@@ -694,6 +698,7 @@ export default function ReconciliationPage() {
             amount: parseFloat(t.creditAmount) || 0,
             status: t.reconciliationStatus === 'unmatched' ? 'unmatched' : 
                    t.reconciliationStatus === 'suggested_match' ? 'suggested' : 'matched',
+            reconciliationStatus: t.reconciliationStatus,
             orderId: t.orderId || undefined
           }));
           setBankTransactions(transformedBank);
@@ -710,6 +715,7 @@ export default function ReconciliationPage() {
             amount: parseFloat(o.amountTotalFee) || 0,
             status: o.reconciliationStatus === 'unmatched' ? 'unmatched' : 
                    o.reconciliationStatus === 'suggested_match' ? 'suggested' : 'matched',
+            reconciliationStatus: o.reconciliationStatus,
             matchedBankIds: o.transactionIds || undefined,
             suggestedMatchId: o.transactionIds?.[0] || undefined
           }));
@@ -785,6 +791,7 @@ export default function ReconciliationPage() {
             amount: parseFloat(t.creditAmount),
             status: t.reconciliationStatus === 'unmatched' ? 'unmatched' : 
                    t.reconciliationStatus === 'suggested_match' ? 'suggested' : 'matched',
+            reconciliationStatus: t.reconciliationStatus,
             orderId: t.orderId || undefined
           }));
           setBankTransactions(transformedTransactions);
@@ -858,6 +865,7 @@ export default function ReconciliationPage() {
             amount: parseFloat(t.creditAmount) || 0,
             status: t.reconciliationStatus === 'unmatched' ? 'unmatched' : 
                    t.reconciliationStatus === 'suggested_match' ? 'suggested' : 'matched',
+            reconciliationStatus: t.reconciliationStatus,
             orderId: t.orderId || undefined
           }));
           setBankTransactions(transformedBank);
@@ -874,6 +882,7 @@ export default function ReconciliationPage() {
             amount: parseFloat(o.amountTotalFee) || 0,
             status: o.reconciliationStatus === 'unmatched' ? 'unmatched' : 
                    o.reconciliationStatus === 'suggested_match' ? 'suggested' : 'matched',
+            reconciliationStatus: o.reconciliationStatus,
             matchedBankIds: o.transactionIds || undefined
           }));
           setRemittances(transformedRemittances);
@@ -1167,12 +1176,12 @@ export default function ReconciliationPage() {
   const isMatchable = selectedBankIds.size > 0 && selectedRemitIds.size > 0;
   const isPerfectMatch = Math.abs(difference) < 0.01;
 
-  // Group Matched Items
+  // Group Matched Items - only show temporarily_matched, not fully reconciled
   const matchedGroups = useMemo(() => {
     if (!showMatched) return [];
     
-    // 1. Find matched remittances
-    const matchedRemits = remittances.filter(r => r.status === 'matched');
+    // 1. Find temporarily matched remittances (not fully reconciled)
+    const matchedRemits = remittances.filter(r => r.reconciliationStatus === 'temporarily_matched');
     
     // 2. Map them to their bank transactions using both approaches for robustness:
     //    - Check if bank transaction is in remittance's matchedBankIds array
@@ -1180,7 +1189,7 @@ export default function ReconciliationPage() {
     return matchedRemits.map(r => {
        const remitId = parseInt(r.id);
        const relatedBankTxns = bankTransactions.filter(b => 
-         b.status === 'matched' && (
+         b.reconciliationStatus === 'temporarily_matched' && (
            r.matchedBankIds?.includes(b.id) || 
            b.orderId === remitId
          )
@@ -1189,15 +1198,15 @@ export default function ReconciliationPage() {
     }).sort((a, b) => b.remittance.date.localeCompare(a.remittance.date)); // Sort by date desc
   }, [remittances, bankTransactions, showMatched]);
 
-  // Counts for reconcile confirmation (independent of showMatched toggle)
+  // Counts for reconcile confirmation (independent of showMatched toggle) - only temporarily_matched
   const reconcileCounts = useMemo(() => {
-    const matchedRemits = remittances.filter(r => r.status === 'matched');
+    const matchedRemits = remittances.filter(r => r.reconciliationStatus === 'temporarily_matched');
     // Count transactions using both matchedBankIds and orderId for robustness
     let totalTransactions = 0;
     for (const r of matchedRemits) {
       const remitId = parseInt(r.id);
       const txCount = bankTransactions.filter(b => 
-        b.status === 'matched' && (
+        b.reconciliationStatus === 'temporarily_matched' && (
           r.matchedBankIds?.includes(b.id) || 
           b.orderId === remitId
         )
