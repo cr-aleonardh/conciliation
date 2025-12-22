@@ -459,11 +459,11 @@ export async function registerRoutes(
     }
   });
 
-  // Fetch ALL Orders from Curiara API (no status filter)
+  // Fetch ALL Orders from Curiara API (admin only, with status filter)
   app.post("/api/fetch-orders-all", async (req, res) => {
     try {
-      const { startDate, endDate } = req.body || {};
-      console.log(`Starting Python script to fetch ALL orders. startDate: ${startDate || 'default'}, endDate: ${endDate || 'default'}...`);
+      const { startDate, endDate, statusFilter } = req.body || {};
+      console.log(`Starting Python script to fetch ALL orders. startDate: ${startDate || 'default'}, endDate: ${endDate || 'default'}, statusFilter: ${statusFilter || 'none'}...`);
       
       // Pass dates as command-line arguments to Python script
       const args = ["scripts/fetch_orders.py", startDate || "null", endDate || "null"];
@@ -515,8 +515,16 @@ export async function registerRoutes(
             });
           }
           
+          // Filter orders by status if statusFilter is provided (P = Paid, H = Holding)
+          let ordersToProcess = pythonResult.orders;
+          if (statusFilter) {
+            const beforeCount = ordersToProcess.length;
+            ordersToProcess = ordersToProcess.filter((order: any) => order.status === statusFilter);
+            console.log(`Status filter "${statusFilter}": ${beforeCount} -> ${ordersToProcess.length} orders`);
+          }
+          
           // Use skipStatusFilter: true to include all orders regardless of status
-          const { orders: ordersToUpsert, errors: validationErrors } = mapAndValidateOrders(pythonResult.orders, { skipStatusFilter: true });
+          const { orders: ordersToUpsert, errors: validationErrors } = mapAndValidateOrders(ordersToProcess, { skipStatusFilter: true });
           
           if (validationErrors.length > 0) {
             console.warn(`Validation issues with ${validationErrors.length} orders:`, validationErrors.slice(0, 5));
@@ -524,11 +532,12 @@ export async function registerRoutes(
           
           const dbResult = await storage.upsertOrders(ordersToUpsert);
           
-          console.log(`Fetch ALL complete: ${pythonResult.message}, inserted: ${dbResult.inserted}, updated: ${dbResult.updated}`);
+          const statusLabel = statusFilter === 'P' ? 'Paid' : statusFilter === 'H' ? 'Holding' : 'All';
+          console.log(`Fetch complete (${statusLabel}): ${pythonResult.message}, inserted: ${dbResult.inserted}, updated: ${dbResult.updated}`);
           
           res.json({
             success: true,
-            message: `Fetched ALL orders (no status filter). Inserted: ${dbResult.inserted}, Updated: ${dbResult.updated}`,
+            message: `Fetched orders (${statusLabel}). Inserted: ${dbResult.inserted}, Updated: ${dbResult.updated}`,
             inserted: dbResult.inserted,
             updated: dbResult.updated,
             totalPages: pythonResult.totalPages,
