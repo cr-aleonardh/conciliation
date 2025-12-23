@@ -214,7 +214,7 @@ const SuggestedMatchRow = ({
                <span className="text-xs font-mono text-muted-foreground/40">{remittance.orderNumber}</span>
                <MatchStatsDisplay stats={stats} />
             </div>
-            <ClickToCopy text={remittance.customerName}><span className="text-sm font-medium opacity-90">{remittance.customerName}</span></ClickToCopy>
+            <ClickToCopy text={remittance.customerName}><span className="text-sm font-medium opacity-90 whitespace-nowrap">{remittance.customerName}</span></ClickToCopy>
          </div>
          <AmountDisplay amount={remittance.amount} type="remit" />
       </div>
@@ -342,8 +342,8 @@ const MatchedGroupRow = ({
                      Let's iterate and show stats against the first one for now as a representative. */}
                  {bankTransactions.length > 0 && <MatchStatsDisplay stats={calculateMatchStats(bankTransactions[0], remittance)} />}
               </div>
-              <div>
-                 <ClickToCopy text={remittance.customerName}><span className="text-sm font-medium text-muted-foreground line-through decoration-muted-foreground/30">
+              <div className="max-w-full overflow-hidden">
+                 <ClickToCopy text={remittance.customerName}><span className="text-sm font-medium text-muted-foreground line-through decoration-muted-foreground/30 whitespace-nowrap">
                    {remittance.customerName}
                  </span></ClickToCopy>
               </div>
@@ -498,8 +498,8 @@ const RemittanceRow = ({
         </div>
 
         {/* Bottom Line: Name */}
-        <div>
-           <ClickToCopy text={data.customerName}><span className={cn("text-base font-medium transition-colors", isMatched ? "text-muted-foreground line-through decoration-muted-foreground/30" : "text-foreground group-hover:text-secondary")}>
+        <div className="max-w-full overflow-hidden">
+           <ClickToCopy text={data.customerName}><span className={cn("text-base font-medium transition-colors whitespace-nowrap", isMatched ? "text-muted-foreground line-through decoration-muted-foreground/30" : "text-foreground group-hover:text-secondary")}>
              {data.customerName}
            </span></ClickToCopy>
         </div>
