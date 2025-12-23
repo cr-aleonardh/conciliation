@@ -544,6 +544,12 @@ export default function ReconciliationPage({ isAdmin = false }: ReconciliationPa
   const [bankFilter, setBankFilter] = useState('');
   const [remitFilter, setRemitFilter] = useState('');
   
+  // Date range filters
+  const [bankDateFrom, setBankDateFrom] = useState<Date | undefined>(undefined);
+  const [bankDateTo, setBankDateTo] = useState<Date | undefined>(undefined);
+  const [remitDateFrom, setRemitDateFrom] = useState<Date | undefined>(undefined);
+  const [remitDateTo, setRemitDateTo] = useState<Date | undefined>(undefined);
+  
   const [showMatched, setShowMatched] = useState(false);
 
   // Sorting State
@@ -951,12 +957,29 @@ export default function ReconciliationPage({ isAdmin = false }: ReconciliationPa
 
   // Filtering & Sorting
   const filteredBank = useMemo(() => 
-    bankTransactions.filter(t => 
-      (showMatched || (t.status !== 'matched' && t.status !== 'suggested')) && 
-      (t.payee.toLowerCase().includes(bankFilter.toLowerCase()) || 
-       t.amount.toString().includes(bankFilter) ||
-       t.reference.includes(bankFilter))
-    ).sort((a, b) => {
+    bankTransactions.filter(t => {
+      // Status filter
+      if (!showMatched && (t.status === 'matched' || t.status === 'suggested')) return false;
+      
+      // Text filter
+      const matchesText = t.payee.toLowerCase().includes(bankFilter.toLowerCase()) || 
+                          t.amount.toString().includes(bankFilter) ||
+                          t.reference.includes(bankFilter);
+      if (!matchesText) return false;
+      
+      // Date range filter
+      if (bankDateFrom || bankDateTo) {
+        const txDate = new Date(t.date);
+        if (bankDateFrom && txDate < bankDateFrom) return false;
+        if (bankDateTo) {
+          const endOfDay = new Date(bankDateTo);
+          endOfDay.setHours(23, 59, 59, 999);
+          if (txDate > endOfDay) return false;
+        }
+      }
+      
+      return true;
+    }).sort((a, b) => {
        // Always put unmatched first (but exclude suggested from this specific sort if they are hidden)
        if (a.status !== b.status) return a.status === 'unmatched' ? -1 : 1;
        
@@ -969,16 +992,33 @@ export default function ReconciliationPage({ isAdmin = false }: ReconciliationPa
          case 'reference': comparison = a.reference.localeCompare(b.reference); break;
        }
        return bankSort.order === 'asc' ? comparison : -comparison;
-    }), [bankTransactions, bankFilter, showMatched, bankSort]
+    }), [bankTransactions, bankFilter, showMatched, bankSort, bankDateFrom, bankDateTo]
   );
 
   const filteredRemit = useMemo(() => 
-    remittances.filter(r => 
-      (showMatched || (r.status !== 'matched' && r.status !== 'suggested')) &&
-      (r.customerName.toLowerCase().includes(remitFilter.toLowerCase()) || 
-       r.amount.toString().includes(remitFilter) ||
-       r.reference.toLowerCase().includes(remitFilter.toLowerCase()))
-    ).sort((a, b) => {
+    remittances.filter(r => {
+      // Status filter
+      if (!showMatched && (r.status === 'matched' || r.status === 'suggested')) return false;
+      
+      // Text filter
+      const matchesText = r.customerName.toLowerCase().includes(remitFilter.toLowerCase()) || 
+                          r.amount.toString().includes(remitFilter) ||
+                          r.reference.toLowerCase().includes(remitFilter.toLowerCase());
+      if (!matchesText) return false;
+      
+      // Date range filter
+      if (remitDateFrom || remitDateTo) {
+        const orderDate = new Date(r.date);
+        if (remitDateFrom && orderDate < remitDateFrom) return false;
+        if (remitDateTo) {
+          const endOfDay = new Date(remitDateTo);
+          endOfDay.setHours(23, 59, 59, 999);
+          if (orderDate > endOfDay) return false;
+        }
+      }
+      
+      return true;
+    }).sort((a, b) => {
        // Always put unmatched first
        if (a.status !== b.status) return a.status === 'unmatched' ? -1 : 1;
 
@@ -992,7 +1032,7 @@ export default function ReconciliationPage({ isAdmin = false }: ReconciliationPa
          case 'orderNumber': comparison = a.orderNumber.localeCompare(b.orderNumber); break;
        }
        return remitSort.order === 'asc' ? comparison : -comparison;
-    }), [remittances, remitFilter, showMatched, remitSort]
+    }), [remittances, remitFilter, showMatched, remitSort, remitDateFrom, remitDateTo]
   );
 
   // Suggestions Logic
@@ -1673,15 +1713,42 @@ export default function ReconciliationPage({ isAdmin = false }: ReconciliationPa
              <div className="w-2 h-2 rounded-full bg-bank shadow-[0_0_8px_var(--color-bank)]" />
              <span className="text-sm font-semibold text-bank uppercase tracking-wider whitespace-nowrap">Bank Transactions</span>
              <div className="ml-auto flex items-center gap-2">
-                <div className="relative w-48">
+                <div className="relative w-40">
                   <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
                   <Input 
                     className="h-7 text-xs pl-7 bg-muted/30 border-transparent focus:bg-background" 
-                    placeholder="Filter transactions..." 
+                    placeholder="Filter..." 
                     value={bankFilter}
                     onChange={(e) => setBankFilter(e.target.value)}
                   />
                 </div>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="sm" className={cn("h-7 text-xs gap-1 px-2", bankDateFrom && "text-foreground")}>
+                      <CalendarIcon className="w-3 h-3" />
+                      {bankDateFrom ? format(bankDateFrom, "MM/dd") : "From"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="end">
+                    <Calendar mode="single" selected={bankDateFrom} onSelect={setBankDateFrom} initialFocus />
+                  </PopoverContent>
+                </Popover>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="sm" className={cn("h-7 text-xs gap-1 px-2", bankDateTo && "text-foreground")}>
+                      <CalendarIcon className="w-3 h-3" />
+                      {bankDateTo ? format(bankDateTo, "MM/dd") : "To"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="end">
+                    <Calendar mode="single" selected={bankDateTo} onSelect={setBankDateTo} initialFocus />
+                  </PopoverContent>
+                </Popover>
+                {(bankDateFrom || bankDateTo) && (
+                  <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => { setBankDateFrom(undefined); setBankDateTo(undefined); }}>
+                    <X className="w-3 h-3" />
+                  </Button>
+                )}
              </div>
           </div>
 
@@ -1737,15 +1804,42 @@ export default function ReconciliationPage({ isAdmin = false }: ReconciliationPa
              <div className="w-2 h-2 rounded-full bg-remit shadow-[0_0_8px_var(--color-remit)]" />
              <span className="text-sm font-semibold text-remit uppercase tracking-wider whitespace-nowrap">Orders</span>
              <div className="ml-auto flex items-center gap-2">
-                <div className="relative w-48">
+                <div className="relative w-40">
                   <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
                   <Input 
                     className="h-7 text-xs pl-7 bg-muted/30 border-transparent focus:bg-background" 
-                    placeholder="Filter orders..." 
+                    placeholder="Filter..." 
                     value={remitFilter}
                     onChange={(e) => setRemitFilter(e.target.value)}
                   />
                 </div>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="sm" className={cn("h-7 text-xs gap-1 px-2", remitDateFrom && "text-foreground")}>
+                      <CalendarIcon className="w-3 h-3" />
+                      {remitDateFrom ? format(remitDateFrom, "MM/dd") : "From"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="end">
+                    <Calendar mode="single" selected={remitDateFrom} onSelect={setRemitDateFrom} initialFocus />
+                  </PopoverContent>
+                </Popover>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="sm" className={cn("h-7 text-xs gap-1 px-2", remitDateTo && "text-foreground")}>
+                      <CalendarIcon className="w-3 h-3" />
+                      {remitDateTo ? format(remitDateTo, "MM/dd") : "To"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="end">
+                    <Calendar mode="single" selected={remitDateTo} onSelect={setRemitDateTo} initialFocus />
+                  </PopoverContent>
+                </Popover>
+                {(remitDateFrom || remitDateTo) && (
+                  <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => { setRemitDateFrom(undefined); setRemitDateTo(undefined); }}>
+                    <X className="w-3 h-3" />
+                  </Button>
+                )}
              </div>
           </div>
 
