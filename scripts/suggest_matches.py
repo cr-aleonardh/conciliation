@@ -2,8 +2,9 @@
 """
 Suggestion Matching Script
 Finds potential matches between bank transactions and orders using:
-1. Reference match + amount match (<=0.99 diff) + date match (<=2 days diff)
-2. Fuzzy name match (>70%) + amount match (<=0.99 diff) + date match (<=2 days diff)
+1. Reference match + amount match (<=0.99 diff) + date match (bank 2 days before to 3 days after order)
+2. Fuzzy name match (>70%) + amount match (<=0.99 diff) + date match (bank 2 days before to 3 days after order)
+3. No reference on bank + name match (>70%) + amount match (<=0.99 diff) + date match
 """
 
 import os
@@ -43,14 +44,18 @@ def check_amount_match(bank_amount, order_amount, threshold=0.99):
     except:
         return False
 
-def check_date_match(bank_date, order_date, max_days=2):
-    """Check if dates match within max_days difference"""
+def check_date_match(bank_date, order_date, days_before=2, days_after=3):
+    """
+    Check if dates match within allowed range.
+    Bank can be up to days_before days BEFORE the order (bank is older).
+    Bank can be up to days_after days AFTER the order (bank is newer).
+    """
     bank_d = parse_date(bank_date)
     order_d = parse_date(order_date)
     if bank_d is None or order_d is None:
         return False
-    diff = abs((bank_d - order_d).days)
-    return diff <= max_days
+    diff = (bank_d - order_d).days
+    return -days_before <= diff <= days_after
 
 def check_reference_match(bank_ref, order_ref):
     """Check if references match (case-insensitive)"""
