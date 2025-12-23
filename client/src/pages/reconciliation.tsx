@@ -53,9 +53,14 @@ type SortOrder = 'asc' | 'desc';
 
 const calculateMatchStats = (bank: BankTransaction, remit: Remittance) => {
   // R: Reference match indicator (Y/N)
-  const isReferenceMatch = bank.reference.toLowerCase() === remit.reference.toLowerCase() || 
-                           bank.reference.toLowerCase().includes(remit.reference.toLowerCase()) || 
-                           remit.reference.toLowerCase().includes(bank.reference.toLowerCase());
+  // Must have non-empty references on both sides to be a match
+  const bankRef = bank.reference?.trim().toLowerCase() || '';
+  const remitRef = remit.reference?.trim().toLowerCase() || '';
+  const isReferenceMatch = bankRef !== '' && remitRef !== '' && (
+    bankRef === remitRef || 
+    bankRef.includes(remitRef) || 
+    remitRef.includes(bankRef)
+  );
   const rValue = isReferenceMatch ? 'Y' : 'N';
 
   // N: Name similarity score (0-100%)
