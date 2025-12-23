@@ -22,7 +22,8 @@ import {
   List,
   ArrowLeft,
   CalendarIcon,
-  X
+  X,
+  Settings
 } from "lucide-react";
 import { Link } from "wouter";
 import { format } from "date-fns";
@@ -37,9 +38,10 @@ type StatusFilter = "all" | "reconciled" | "unmatched";
 
 interface AllTransactionsPageProps {
   isViewer?: boolean;
+  isAdmin?: boolean;
 }
 
-export default function AllTransactionsPage({ isViewer = false }: AllTransactionsPageProps) {
+export default function AllTransactionsPage({ isViewer = false, isAdmin = false }: AllTransactionsPageProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [sortField, setSortField] = useState<SortField>("transactionDate");
@@ -189,6 +191,19 @@ export default function AllTransactionsPage({ isViewer = false }: AllTransaction
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {isAdmin && (
+              <Link href="/manage-unreconciled">
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  className="border-amber-600 text-amber-400 hover:bg-amber-900/30"
+                  data-testid="button-manage-unreconciled"
+                >
+                  <Settings className="w-4 h-4 mr-2" />
+                  Manage Unreconciled
+                </Button>
+              </Link>
+            )}
             {!isViewer && (
               <Link href="/">
                 <Button 

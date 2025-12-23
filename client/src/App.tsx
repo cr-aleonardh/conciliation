@@ -8,6 +8,7 @@ import NotFound from "@/pages/not-found";
 import ReconciliationPage from "@/pages/reconciliation";
 import ReconciledPage from "@/pages/reconciled";
 import AllTransactionsPage from "@/pages/all-transactions";
+import UnreconciledTransactionsPage from "@/pages/unreconciled-transactions";
 import LoginPage from "@/pages/login";
 
 function App() {
@@ -63,7 +64,8 @@ function App() {
         <Switch>
           <Route path="/" component={() => <ReconciliationPage isAdmin={isAdmin} />} />
           <Route path="/reconciled" component={ReconciledPage} />
-          <Route path="/all-transactions" component={AllTransactionsPage} />
+          <Route path="/all-transactions" component={() => <AllTransactionsPage isAdmin={isAdmin} />} />
+          {isAdmin && <Route path="/manage-unreconciled" component={UnreconciledTransactionsPage} />}
           <Route component={NotFound} />
         </Switch>
       </TooltipProvider>
