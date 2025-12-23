@@ -1454,6 +1454,17 @@ export default function ReconciliationPage({ isAdmin = false }: ReconciliationPa
                   ALL TRANSACTIONS
                </Button>
              </Link>
+             <Link href="/commission-reconciliations">
+               <Button 
+                 size="sm" 
+                 variant="outline" 
+                 className="h-8 text-xs gap-2 border-amber-600 text-amber-400 hover:bg-amber-900/30"
+                 data-testid="button-commission-reconciliations"
+               >
+                  <ArrowRightLeft className="w-3.5 h-3.5" />
+                  COMMISSION
+               </Button>
+             </Link>
              {reconcileCounts.orders > 0 && (
                <Button 
                  size="sm" 

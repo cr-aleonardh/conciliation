@@ -345,6 +345,27 @@ export async function registerRoutes(
     }
   });
 
+  // Get commission transactions (amounts between 3.50 and 4.50) and all orders
+  app.get("/api/commission-data", async (req, res) => {
+    try {
+      const allTransactions = await storage.getBankTransactions();
+      const allOrders = await storage.getOrders();
+      
+      // Filter transactions with amounts between 3.50 and 4.50
+      const commissionTransactions = allTransactions.filter(t => {
+        const amount = parseFloat(t.creditAmount || '0');
+        return amount >= 3.50 && amount <= 4.50;
+      });
+      
+      res.json({ 
+        transactions: commissionTransactions, 
+        orders: allOrders 
+      });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   // Bank File Upload - Process directly in Node.js
   app.post("/api/upload-bank-file", upload.single('file'), async (req, res) => {
     try {
