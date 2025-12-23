@@ -20,9 +20,15 @@ import {
   LogOut,
   RefreshCw,
   List,
-  ArrowLeft
+  ArrowLeft,
+  CalendarIcon,
+  X
 } from "lucide-react";
 import { Link } from "wouter";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import type { BankTransaction } from "@shared/schema";
 
 type SortField = "transactionDate" | "payerSender" | "extractedReference" | "creditAmount";
@@ -38,6 +44,8 @@ export default function AllTransactionsPage({ isViewer = false }: AllTransaction
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [sortField, setSortField] = useState<SortField>("transactionDate");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
+  const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
+  const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
 
   const { data: transactions = [], isLoading, refetch } = useQuery<BankTransaction[]>({
     queryKey: ["/api/bank-transactions"],
@@ -94,6 +102,19 @@ export default function AllTransactionsPage({ isViewer = false }: AllTransaction
       );
     }
 
+    if (dateFrom || dateTo) {
+      result = result.filter(t => {
+        const txDate = new Date(t.transactionDate);
+        if (dateFrom && txDate < dateFrom) return false;
+        if (dateTo) {
+          const endOfDay = new Date(dateTo);
+          endOfDay.setHours(23, 59, 59, 999);
+          if (txDate > endOfDay) return false;
+        }
+        return true;
+      });
+    }
+
     result.sort((a, b) => {
       let aVal: any, bVal: any;
       
@@ -122,7 +143,7 @@ export default function AllTransactionsPage({ isViewer = false }: AllTransaction
     });
 
     return result;
-  }, [transactions, statusFilter, searchQuery, sortField, sortDirection]);
+  }, [transactions, statusFilter, searchQuery, sortField, sortDirection, dateFrom, dateTo]);
 
   const reconciledCount = transactions.filter(t => t.reconciliationStatus === "reconciled").length;
   const unreconciledCount = transactions.filter(t => t.reconciliationStatus !== "reconciled").length;
@@ -230,6 +251,36 @@ export default function AllTransactionsPage({ isViewer = false }: AllTransaction
                   className="pl-10 bg-slate-800 border-slate-600 text-slate-100 placeholder:text-slate-500"
                   data-testid="input-search"
                 />
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="sm" className={cn("gap-1.5 border-slate-600 text-slate-300 hover:bg-slate-800", dateFrom && "text-slate-100")}>
+                      <CalendarIcon className="w-4 h-4" />
+                      {dateFrom ? format(dateFrom, "MM/dd/yyyy") : "From"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="end">
+                    <Calendar mode="single" selected={dateFrom} onSelect={setDateFrom} initialFocus />
+                  </PopoverContent>
+                </Popover>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="sm" className={cn("gap-1.5 border-slate-600 text-slate-300 hover:bg-slate-800", dateTo && "text-slate-100")}>
+                      <CalendarIcon className="w-4 h-4" />
+                      {dateTo ? format(dateTo, "MM/dd/yyyy") : "To"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="end">
+                    <Calendar mode="single" selected={dateTo} onSelect={setDateTo} initialFocus />
+                  </PopoverContent>
+                </Popover>
+                {(dateFrom || dateTo) && (
+                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-slate-400 hover:text-slate-100" onClick={() => { setDateFrom(undefined); setDateTo(undefined); }}>
+                    <X className="w-4 h-4" />
+                  </Button>
+                )}
               </div>
 
               <div className="flex items-center gap-2">
