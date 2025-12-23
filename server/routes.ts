@@ -518,7 +518,7 @@ export async function registerRoutes(
             });
           }
           
-          // Filter orders by status if statusFilter is provided (P = Paid, H = Holding)
+          // Filter orders by status if statusFilter is provided (P = Paid, H = Holding, D = Dispatch)
           let ordersToProcess = pythonResult.orders;
           if (statusFilter) {
             const beforeCount = ordersToProcess.length;
@@ -535,7 +535,7 @@ export async function registerRoutes(
           
           const dbResult = await storage.upsertOrders(ordersToUpsert);
           
-          const statusLabel = statusFilter === 'P' ? 'Paid' : statusFilter === 'H' ? 'Holding' : 'All';
+          const statusLabel = statusFilter === 'P' ? 'Paid' : statusFilter === 'H' ? 'Holding' : statusFilter === 'D' ? 'Dispatch' : 'All';
           console.log(`Fetch complete (${statusLabel}): ${pythonResult.message}, inserted: ${dbResult.inserted}, updated: ${dbResult.updated}`);
           
           res.json({
