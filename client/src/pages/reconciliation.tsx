@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Link } from 'wouter';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, ArrowRightLeft, X, RefreshCw, Layers, Keyboard, Eye, EyeOff, CheckCircle2, ArrowUpDown, ArrowUp, ArrowDown, Sparkles, Check, ThumbsUp, ThumbsDown, XCircle, History, GripHorizontal, Unlink, Upload, DownloadCloud, ChevronDown, ChevronRight, CalendarIcon } from 'lucide-react';
+import { Search, ArrowRightLeft, X, RefreshCw, Layers, Keyboard, Eye, EyeOff, CheckCircle2, ArrowUpDown, ArrowUp, ArrowDown, Sparkles, Check, ThumbsUp, ThumbsDown, XCircle, History, GripHorizontal, Unlink, Upload, DownloadCloud, ChevronDown, ChevronRight, CalendarIcon, List } from 'lucide-react';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 
@@ -1398,15 +1398,15 @@ export default function ReconciliationPage({ isAdmin = false }: ReconciliationPa
                   </>
                 )}
              </Button>
-             <Link href="/reconciled">
+             <Link href="/all-transactions">
                <Button 
                  size="sm" 
                  variant="outline" 
                  className="h-8 text-xs gap-2"
-                 data-testid="button-view-reconciled"
+                 data-testid="button-view-all-transactions"
                >
-                  <CheckCircle2 className="w-3.5 h-3.5" />
-                  RECONCILED
+                  <List className="w-3.5 h-3.5" />
+                  ALL TRANSACTIONS
                </Button>
              </Link>
              {reconcileCounts.orders > 0 && (

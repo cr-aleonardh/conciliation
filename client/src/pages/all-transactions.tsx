@@ -19,15 +19,21 @@ import {
   ArrowDown, 
   LogOut,
   RefreshCw,
-  List
+  List,
+  ArrowLeft
 } from "lucide-react";
+import { Link } from "wouter";
 import type { BankTransaction } from "@shared/schema";
 
 type SortField = "transactionDate" | "payerSender" | "extractedReference" | "creditAmount";
 type SortDirection = "asc" | "desc";
 type StatusFilter = "all" | "reconciled" | "unmatched";
 
-export default function AllTransactionsPage() {
+interface AllTransactionsPageProps {
+  isViewer?: boolean;
+}
+
+export default function AllTransactionsPage({ isViewer = false }: AllTransactionsPageProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [sortField, setSortField] = useState<SortField>("transactionDate");
@@ -161,16 +167,31 @@ export default function AllTransactionsPage() {
               <p className="text-sm text-slate-400">View all bank transactions</p>
             </div>
           </div>
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={handleLogout}
-            className="border-slate-600 text-slate-300 hover:bg-slate-800"
-            data-testid="button-logout"
-          >
-            <LogOut className="w-4 h-4 mr-2" />
-            Logout
-          </Button>
+          <div className="flex items-center gap-2">
+            {!isViewer && (
+              <Link href="/">
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  className="border-slate-600 text-slate-300 hover:bg-slate-800"
+                  data-testid="button-back-cockpit"
+                >
+                  <ArrowLeft className="w-4 h-4 mr-2" />
+                  Back to Cockpit
+                </Button>
+              </Link>
+            )}
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={handleLogout}
+              className="border-slate-600 text-slate-300 hover:bg-slate-800"
+              data-testid="button-logout"
+            >
+              <LogOut className="w-4 h-4 mr-2" />
+              Logout
+            </Button>
+          </div>
         </div>
       </header>
 

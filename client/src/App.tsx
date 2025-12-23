@@ -48,7 +48,7 @@ function App() {
         <TooltipProvider>
           <Toaster />
           <Switch>
-            <Route path="/all-transactions" component={AllTransactionsPage} />
+            <Route path="/all-transactions" component={() => <AllTransactionsPage isViewer={true} />} />
             <Route><Redirect to="/all-transactions" /></Route>
           </Switch>
         </TooltipProvider>
