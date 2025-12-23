@@ -587,7 +587,7 @@ export default function ReconciliationPage({ isAdmin = false }: ReconciliationPa
   const [showFetchAllModal, setShowFetchAllModal] = useState(false);
   const [fetchAllStartDate, setFetchAllStartDate] = useState<Date | undefined>(undefined);
   const [fetchAllEndDate, setFetchAllEndDate] = useState<Date | undefined>(new Date());
-  const [fetchAllStatus, setFetchAllStatus] = useState<"P" | "H">("P");
+  const [fetchAllStatus, setFetchAllStatus] = useState<"P" | "H" | "D">("P");
 
 
   useEffect(() => {
@@ -666,7 +666,7 @@ export default function ReconciliationPage({ isAdmin = false }: ReconciliationPa
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const handleFetchAllOrders = async (startDate?: Date, endDate?: Date, status?: "P" | "H") => {
+  const handleFetchAllOrders = async (startDate?: Date, endDate?: Date, status?: "P" | "H" | "D") => {
     if (isFetchingAllOrders) return;
     
     setIsFetchingAllOrders(true);
@@ -2018,13 +2018,14 @@ export default function ReconciliationPage({ isAdmin = false }: ReconciliationPa
             </div>
             <div className="grid gap-2">
               <Label htmlFor="status">Status Filter</Label>
-              <Select value={fetchAllStatus} onValueChange={(value: "P" | "H") => setFetchAllStatus(value)}>
+              <Select value={fetchAllStatus} onValueChange={(value: "P" | "H" | "D") => setFetchAllStatus(value)}>
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Select status" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="P">Paid</SelectItem>
                   <SelectItem value="H">Holding</SelectItem>
+                  {isAdmin && <SelectItem value="D">Dispatch</SelectItem>}
                 </SelectContent>
               </Select>
             </div>
