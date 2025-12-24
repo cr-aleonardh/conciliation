@@ -590,7 +590,7 @@ export default function ReconciliationPage({ isAdmin = false }: ReconciliationPa
 
   // Amount Difference Warning State
   const [showAmountWarning, setShowAmountWarning] = useState(false);
-  const [pendingMatch, setPendingMatch] = useState<{ remitId: string; bankId: string; difference: number } | null>(null);
+  const [pendingMatch, setPendingMatch] = useState<{ remitId: string; bankIds: string[]; difference: number } | null>(null);
 
   // Fetch All Orders Modal State (Admin only)
   const [showFetchAllModal, setShowFetchAllModal] = useState(false);
@@ -1081,7 +1081,7 @@ export default function ReconciliationPage({ isAdmin = false }: ReconciliationPa
       const difference = remit.amount - bank.amount;
       // Show warning if order amount exceeds bank amount by more than 1.00
       if (difference > 1.00) {
-        setPendingMatch({ remitId, bankId, difference });
+        setPendingMatch({ remitId, bankIds: [bankId], difference });
         setShowAmountWarning(true);
         return;
       }
@@ -1092,7 +1092,13 @@ export default function ReconciliationPage({ isAdmin = false }: ReconciliationPa
 
   const handleConfirmAmountWarning = async () => {
     if (pendingMatch) {
-      await executeMatch(pendingMatch.remitId, pendingMatch.bankId);
+      // Execute match for each bank transaction
+      for (const bankId of pendingMatch.bankIds) {
+        await executeMatch(pendingMatch.remitId, bankId);
+      }
+      // Clear selection after manual match
+      setSelectedBankIds(new Set());
+      setSelectedRemitIds(new Set());
       setPendingMatch(null);
       setShowAmountWarning(false);
     }
@@ -1259,8 +1265,22 @@ export default function ReconciliationPage({ isAdmin = false }: ReconciliationPa
   const handleMatch = useCallback(async () => {
     if (selectedBankIds.size === 0 || selectedRemitIds.size === 0) return;
 
-    const orderId = parseInt(Array.from(selectedRemitIds)[0]);
+    const remitId = Array.from(selectedRemitIds)[0];
     const transactionHashes = Array.from(selectedBankIds);
+    
+    // Check if order amount exceeds total bank amount by more than 1.00
+    const remit = remittances.find(r => r.id === remitId);
+    const selectedBanks = bankTransactions.filter(b => selectedBankIds.has(b.id));
+    const totalBankAmount = selectedBanks.reduce((sum, b) => sum + b.amount, 0);
+    
+    if (remit) {
+      const difference = remit.amount - totalBankAmount;
+      if (difference > 1.00) {
+        setPendingMatch({ remitId, bankIds: transactionHashes, difference });
+        setShowAmountWarning(true);
+        return;
+      }
+    }
     
     try {
       // Call API to persist each match with 'temporarily_matched' status
@@ -1270,7 +1290,7 @@ export default function ReconciliationPage({ isAdmin = false }: ReconciliationPa
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             transactionHash,
-            orderId,
+            orderId: parseInt(remitId),
             status: 'temporarily_matched'
           })
         });
@@ -1295,7 +1315,7 @@ export default function ReconciliationPage({ isAdmin = false }: ReconciliationPa
     } catch (error) {
       console.error('Failed to save match:', error);
     }
-  }, [selectedBankIds, selectedRemitIds]);
+  }, [selectedBankIds, selectedRemitIds, remittances, bankTransactions]);
 
   // Keyboard Shortcut
   useEffect(() => {
