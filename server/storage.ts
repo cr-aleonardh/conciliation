@@ -227,19 +227,20 @@ export class DatabaseStorage implements IStorage {
           .where(inArray(bankTransactions.transactionHash, transactionHashes));
       }
 
-      // Update the order - remove transaction IDs and reset reconciliation status
+      // Update the order - remove transaction IDs and always reset to unmatched
       const order = await tx.select().from(orders).where(eq(orders.orderId, orderId));
       if (order[0]) {
         const currentTransactionIds = order[0].transactionIds || [];
         const updatedTransactionIds = currentTransactionIds.filter((id: string) => !transactionHashes.includes(id));
         
+        // Always set order to unmatched when any transaction is unconciliated
         await tx
           .update(orders)
           .set({ 
             transactionIds: updatedTransactionIds.length > 0 ? updatedTransactionIds : null,
-            reconciliationStatus: updatedTransactionIds.length > 0 ? order[0].reconciliationStatus : 'unmatched',
-            batchId: updatedTransactionIds.length > 0 ? order[0].batchId : null,
-            reconciledAt: updatedTransactionIds.length > 0 ? order[0].reconciledAt : null
+            reconciliationStatus: 'unmatched',
+            batchId: null,
+            reconciledAt: null
           })
           .where(eq(orders.orderId, orderId));
       }
