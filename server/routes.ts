@@ -215,11 +215,10 @@ export async function registerRoutes(
       const schema = z.object({
         transactionHash: z.string(),
         orderId: z.number(),
-        status: z.string(),
-        reasonToOverride: z.string().optional()
+        status: z.string()
       });
-      const { transactionHash, orderId, status, reasonToOverride } = schema.parse(req.body);
-      await storage.matchTransactionToOrder(transactionHash, orderId, status, reasonToOverride);
+      const { transactionHash, orderId, status } = schema.parse(req.body);
+      await storage.matchTransactionToOrder(transactionHash, orderId, status);
       res.json({ message: "Match created successfully" });
     } catch (error: any) {
       if (error instanceof z.ZodError) {

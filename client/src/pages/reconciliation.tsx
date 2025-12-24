@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Link } from 'wouter';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, ArrowRightLeft, X, RefreshCw, Layers, Keyboard, Eye, EyeOff, CheckCircle2, ArrowUpDown, ArrowUp, ArrowDown, Sparkles, Check, ThumbsUp, ThumbsDown, XCircle, History, GripHorizontal, Unlink, Upload, DownloadCloud, ChevronDown, ChevronRight, CalendarIcon, List, AlertTriangle } from 'lucide-react';
+import { Search, ArrowRightLeft, X, RefreshCw, Layers, Keyboard, Eye, EyeOff, CheckCircle2, ArrowUpDown, ArrowUp, ArrowDown, Sparkles, Check, ThumbsUp, ThumbsDown, XCircle, History, GripHorizontal, Unlink, Upload, DownloadCloud, ChevronDown, ChevronRight, CalendarIcon, List } from 'lucide-react';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 
@@ -593,11 +593,6 @@ export default function ReconciliationPage({ isAdmin = false }: ReconciliationPa
   const [fetchAllStartDate, setFetchAllStartDate] = useState<Date | undefined>(undefined);
   const [fetchAllEndDate, setFetchAllEndDate] = useState<Date | undefined>(new Date());
   const [fetchAllStatus, setFetchAllStatus] = useState<"P" | "H" | "D">("P");
-
-  // Amount Override Warning State
-  const [showOverrideWarning, setShowOverrideWarning] = useState(false);
-  const [overrideReason, setOverrideReason] = useState('');
-  const [pendingMatchData, setPendingMatchData] = useState<{ orderId: number; transactionHashes: string[]; amountDiff: number } | null>(null);
 
 
   useEffect(() => {
@@ -1225,8 +1220,13 @@ export default function ReconciliationPage({ isAdmin = false }: ReconciliationPa
     }
   };
 
-  // Execute match with optional override reason
-  const executeMatch = useCallback(async (orderId: number, transactionHashes: string[], reasonToOverride?: string) => {
+  // Matching Logic
+  const handleMatch = useCallback(async () => {
+    if (selectedBankIds.size === 0 || selectedRemitIds.size === 0) return;
+
+    const orderId = parseInt(Array.from(selectedRemitIds)[0]);
+    const transactionHashes = Array.from(selectedBankIds);
+    
     try {
       // Call API to persist each match with 'temporarily_matched' status
       for (const transactionHash of transactionHashes) {
@@ -1236,22 +1236,21 @@ export default function ReconciliationPage({ isAdmin = false }: ReconciliationPa
           body: JSON.stringify({
             transactionHash,
             orderId,
-            status: 'temporarily_matched',
-            reasonToOverride
+            status: 'temporarily_matched'
           })
         });
       }
       
       // Update local state to reflect the match
       setBankTransactions(prev => prev.map(t => 
-        transactionHashes.includes(t.id) ? { ...t, status: 'matched', reconciliationStatus: 'temporarily_matched' } : t
+        selectedBankIds.has(t.id) ? { ...t, status: 'matched', reconciliationStatus: 'temporarily_matched' } : t
       ));
       setRemittances(prev => prev.map(r => 
-        r.id === String(orderId) ? { 
+        selectedRemitIds.has(r.id) ? { 
           ...r, 
           status: 'matched',
           reconciliationStatus: 'temporarily_matched',
-          matchedBankIds: transactionHashes
+          matchedBankIds: Array.from(selectedBankIds)
         } : r
       ));
 
@@ -1261,56 +1260,7 @@ export default function ReconciliationPage({ isAdmin = false }: ReconciliationPa
     } catch (error) {
       console.error('Failed to save match:', error);
     }
-  }, []);
-
-  // Matching Logic - checks for amount difference warning
-  const handleMatch = useCallback(async () => {
-    if (selectedBankIds.size === 0 || selectedRemitIds.size === 0) return;
-
-    const orderId = parseInt(Array.from(selectedRemitIds)[0]);
-    const transactionHashes = Array.from(selectedBankIds);
-    
-    // Calculate total bank amount and order amount
-    const selectedBankAmount = bankTransactions
-      .filter(t => selectedBankIds.has(t.id))
-      .reduce((sum, t) => sum + t.amount, 0);
-    
-    const selectedOrder = remittances.find(r => r.id === String(orderId));
-    const orderAmount = selectedOrder?.amount || 0;
-    
-    // Check if order amount exceeds bank amount by more than $1.00
-    const amountDiff = orderAmount - selectedBankAmount;
-    
-    if (amountDiff > 1.00) {
-      // Show warning dialog - user must provide reason to override
-      setPendingMatchData({ orderId, transactionHashes, amountDiff });
-      setOverrideReason('');
-      setShowOverrideWarning(true);
-      return;
-    }
-    
-    // No warning needed, proceed with match
-    await executeMatch(orderId, transactionHashes);
-  }, [selectedBankIds, selectedRemitIds, bankTransactions, remittances, executeMatch]);
-
-  // Handle override confirmation
-  const handleOverrideConfirm = useCallback(async () => {
-    if (!pendingMatchData || !overrideReason.trim()) return;
-    
-    await executeMatch(pendingMatchData.orderId, pendingMatchData.transactionHashes, overrideReason.trim());
-    
-    // Reset override state
-    setShowOverrideWarning(false);
-    setOverrideReason('');
-    setPendingMatchData(null);
-  }, [pendingMatchData, overrideReason, executeMatch]);
-
-  // Handle override cancel
-  const handleOverrideCancel = useCallback(() => {
-    setShowOverrideWarning(false);
-    setOverrideReason('');
-    setPendingMatchData(null);
-  }, []);
+  }, [selectedBankIds, selectedRemitIds]);
 
   // Keyboard Shortcut
   useEffect(() => {
@@ -2006,45 +1956,6 @@ export default function ReconciliationPage({ isAdmin = false }: ReconciliationPa
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleReconcile} className="bg-green-600 hover:bg-green-700">
               Yes, Reconcile
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Amount Override Warning Dialog */}
-      <AlertDialog open={showOverrideWarning} onOpenChange={setShowOverrideWarning}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2 text-amber-600">
-              <AlertTriangle className="h-5 w-5" />
-              Amount Difference Warning
-            </AlertDialogTitle>
-            <AlertDialogDescription className="space-y-3">
-              <p>
-                The order amount is <strong className="text-amber-600">${pendingMatchData?.amountDiff.toFixed(2)}</strong> more than the bank transaction total.
-              </p>
-              <p>
-                To proceed with this match, please provide a reason for the override:
-              </p>
-              <Input
-                data-testid="input-reason-to-override"
-                placeholder="Enter reason for override..."
-                value={overrideReason}
-                onChange={(e) => setOverrideReason(e.target.value)}
-                className="mt-2"
-                autoFocus
-              />
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={handleOverrideCancel}>Cancel</AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={handleOverrideConfirm} 
-              disabled={!overrideReason.trim()}
-              className="bg-amber-600 hover:bg-amber-700"
-              data-testid="button-confirm-override"
-            >
-              Override and Match
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
