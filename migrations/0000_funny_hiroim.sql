@@ -1,0 +1,40 @@
+CREATE TABLE "bank_transactions" (
+	"transaction_hash" text PRIMARY KEY NOT NULL,
+	"old_hash" text,
+	"payer_sender" text NOT NULL,
+	"transaction_date" timestamp NOT NULL,
+	"credit_amount" numeric(12, 2) NOT NULL,
+	"description" text NOT NULL,
+	"extracted_reference" text,
+	"match_reference_flag" boolean DEFAULT false NOT NULL,
+	"match_name_score" numeric(5, 2) DEFAULT '0' NOT NULL,
+	"diff_days" integer,
+	"diff_amount" numeric(12, 2),
+	"reconciliation_status" text DEFAULT 'unmatched' NOT NULL,
+	"order_id" integer,
+	"batch_id" integer,
+	"imported_at" timestamp DEFAULT now() NOT NULL,
+	"reconciled_at" timestamp,
+	"reason_to_override" text
+);
+--> statement-breakpoint
+CREATE TABLE "orders" (
+	"order_id" integer PRIMARY KEY NOT NULL,
+	"order_bank_reference" text,
+	"amount" numeric(12, 2) NOT NULL,
+	"fee" numeric(12, 2) NOT NULL,
+	"amount_total_fee" numeric(12, 2) NOT NULL,
+	"order_timestamp" timestamp NOT NULL,
+	"order_date" timestamp NOT NULL,
+	"customer_name" text NOT NULL,
+	"remitec_status" char(1),
+	"match_reference_flag" boolean DEFAULT false NOT NULL,
+	"match_name_score" numeric(5, 2) DEFAULT '0' NOT NULL,
+	"diff_days" integer,
+	"diff_amount" numeric(12, 2),
+	"reconciliation_status" text DEFAULT 'unmatched' NOT NULL,
+	"batch_id" integer,
+	"fetched_at" timestamp DEFAULT now() NOT NULL,
+	"reconciled_at" timestamp,
+	"transaction_ids" text[]
+);

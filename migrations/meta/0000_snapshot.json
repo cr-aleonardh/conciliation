@@ -1,0 +1,263 @@
+{
+  "id": "85cfccd3-f5e7-4fa9-b6c7-78a1bec0faa9",
+  "prevId": "00000000-0000-0000-0000-000000000000",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.bank_transactions": {
+      "name": "bank_transactions",
+      "schema": "",
+      "columns": {
+        "transaction_hash": {
+          "name": "transaction_hash",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "old_hash": {
+          "name": "old_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "payer_sender": {
+          "name": "payer_sender",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "transaction_date": {
+          "name": "transaction_date",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "credit_amount": {
+          "name": "credit_amount",
+          "type": "numeric(12, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "extracted_reference": {
+          "name": "extracted_reference",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "match_reference_flag": {
+          "name": "match_reference_flag",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "match_name_score": {
+          "name": "match_name_score",
+          "type": "numeric(5, 2)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'0'"
+        },
+        "diff_days": {
+          "name": "diff_days",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "diff_amount": {
+          "name": "diff_amount",
+          "type": "numeric(12, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reconciliation_status": {
+          "name": "reconciliation_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'unmatched'"
+        },
+        "order_id": {
+          "name": "order_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "batch_id": {
+          "name": "batch_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "imported_at": {
+          "name": "imported_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "reconciled_at": {
+          "name": "reconciled_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reason_to_override": {
+          "name": "reason_to_override",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.orders": {
+      "name": "orders",
+      "schema": "",
+      "columns": {
+        "order_id": {
+          "name": "order_id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "order_bank_reference": {
+          "name": "order_bank_reference",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "amount": {
+          "name": "amount",
+          "type": "numeric(12, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fee": {
+          "name": "fee",
+          "type": "numeric(12, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "amount_total_fee": {
+          "name": "amount_total_fee",
+          "type": "numeric(12, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "order_timestamp": {
+          "name": "order_timestamp",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "order_date": {
+          "name": "order_date",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "customer_name": {
+          "name": "customer_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "remitec_status": {
+          "name": "remitec_status",
+          "type": "char(1)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "match_reference_flag": {
+          "name": "match_reference_flag",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "match_name_score": {
+          "name": "match_name_score",
+          "type": "numeric(5, 2)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'0'"
+        },
+        "diff_days": {
+          "name": "diff_days",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "diff_amount": {
+          "name": "diff_amount",
+          "type": "numeric(12, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reconciliation_status": {
+          "name": "reconciliation_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'unmatched'"
+        },
+        "batch_id": {
+          "name": "batch_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "fetched_at": {
+          "name": "fetched_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "reconciled_at": {
+          "name": "reconciled_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "transaction_ids": {
+          "name": "transaction_ids",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {},
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}
