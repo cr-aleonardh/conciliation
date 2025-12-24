@@ -10,6 +10,26 @@ Key capabilities:
 - Smart matching engine with automated suggestions
 - Match quality indicators (reference match, name similarity, date/amount differences)
 - Reconciliation status tracking and history
+- Transaction linking: group related bank transactions (main payment + commission) before reconciliation
+- Commission recovery: match orphan commission payments to already-reconciled orders
+
+## Recent Changes (December 2024)
+
+### Transaction Linking Feature
+- Added `transaction_links` table to store relationships between main payments and their commission transactions
+- Links have "suggested" and "confirmed" statuses for user review workflow
+- Python suggestion engine now identifies potential links based on:
+  - Reference/name similarity
+  - Date proximity (within 2 days)
+  - Commission amount range (3.50-4.50)
+- Main reconciliation UI displays suggested links with approve/reject buttons
+
+### Commission Recovery Page
+- Renamed from "Commission Reconciliations" to "Commission Recovery"
+- Left panel: Shows only orphan commission payments (unmatched, 3.50-4.50 range)
+- Right panel: Shows only orders missing their commission (reconciled orders where matched transactions sum < order total by commission amount)
+- Each order displays: missing amount, matched total
+- New `/api/add-commission-to-order` endpoint for linking commissions to already-reconciled orders
 
 ## User Preferences
 
