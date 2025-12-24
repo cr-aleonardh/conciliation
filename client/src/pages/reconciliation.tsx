@@ -2031,10 +2031,7 @@ export default function ReconciliationPage({ isAdmin = false }: ReconciliationPa
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={handleCancelAmountWarning}>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmAmountWarning} className="bg-amber-600 hover:bg-amber-700">
-              Continue Matching
-            </AlertDialogAction>
+            <AlertDialogCancel onClick={handleCancelAmountWarning}>OK</AlertDialogCancel>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
