@@ -1011,7 +1011,8 @@ export default function ReconciliationPage({ isAdmin = false }: ReconciliationPa
       if (!showMatched && (r.status === 'matched' || r.status === 'suggested')) return false;
       
       // Text filter
-      const matchesText = r.customerName.toLowerCase().includes(remitFilter.toLowerCase()) || 
+      const matchesText = r.id.includes(remitFilter) ||
+                          r.customerName.toLowerCase().includes(remitFilter.toLowerCase()) || 
                           r.amount.toString().includes(remitFilter) ||
                           r.reference.toLowerCase().includes(remitFilter.toLowerCase());
       if (!matchesText) return false;
