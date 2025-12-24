@@ -429,32 +429,49 @@ export default function CommissionReconciliationsPage() {
       const bankIds = Array.from(selectedBankIds);
       const orderIdsList = Array.from(selectedOrderIds).map(id => parseInt(id));
 
-      const response = await fetch('/api/reconcile-batch', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          matches: orderIdsList.map(orderId => ({
-            orderId,
-            transactionHashes: bankIds
-          }))
-        })
-      });
-
-      if (response.ok) {
-        toast({
-          title: "Commission matched",
-          description: `Matched ${bankIds.length} transaction(s) to ${orderIdsList.length} order(s)`
+      // For commission recovery, we add commissions to already-reconciled orders
+      // If only one order is selected, add all commissions to that order
+      // If multiple orders, match each commission to its corresponding order
+      
+      if (orderIdsList.length === 1) {
+        // Simple case: add all commission transactions to one order
+        const response = await fetch('/api/add-commission-to-order', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            transactionHashes: bankIds,
+            orderId: orderIdsList[0]
+          })
         });
-        setSelectedBankIds(new Set());
-        setSelectedOrderIds(new Set());
-        fetchData();
+
+        if (!response.ok) throw new Error('Failed to add commission');
       } else {
-        throw new Error('Failed to match');
+        // Multiple orders: add one commission to each order (1:1 mapping)
+        // This assumes user selected matching pairs
+        for (let i = 0; i < Math.min(bankIds.length, orderIdsList.length); i++) {
+          const response = await fetch('/api/add-commission-to-order', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              transactionHashes: [bankIds[i]],
+              orderId: orderIdsList[i]
+            })
+          });
+          if (!response.ok) throw new Error('Failed to add commission');
+        }
       }
+
+      toast({
+        title: "Commission linked",
+        description: `Added ${bankIds.length} commission(s) to ${orderIdsList.length} order(s)`
+      });
+      setSelectedBankIds(new Set());
+      setSelectedOrderIds(new Set());
+      fetchData();
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to match commission",
+        description: "Failed to link commission to order",
         variant: "destructive"
       });
     }
@@ -544,7 +561,7 @@ export default function CommissionReconciliationsPage() {
                     )}
                     data-testid="button-match"
                   >
-                    Match {selectedBankIds.size} to {selectedOrderIds.size}
+                    Link {selectedBankIds.size} to {selectedOrderIds.size}
                   </Button>
                   
                   <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full" onClick={() => {

@@ -284,6 +284,48 @@ export async function registerRoutes(
     }
   });
 
+  // Add commission transaction to already-reconciled order
+  app.post("/api/add-commission-to-order", async (req, res) => {
+    try {
+      const schema = z.object({
+        transactionHashes: z.array(z.string()),
+        orderId: z.number()
+      });
+      const { transactionHashes, orderId } = schema.parse(req.body);
+      
+      // Get the order
+      const order = await storage.getOrderById(orderId);
+      if (!order) {
+        return res.status(404).json({ success: false, message: "Order not found" });
+      }
+      
+      // Add commission transaction hashes to order's transactionIds
+      const existingIds = order.transactionIds || [];
+      const newTransactionIds = [...existingIds, ...transactionHashes.filter(id => !existingIds.includes(id))];
+      
+      // Update order with new transaction IDs
+      await storage.updateOrder(orderId, { transactionIds: newTransactionIds });
+      
+      // Mark each commission transaction as reconciled
+      for (const hash of transactionHashes) {
+        await storage.updateBankTransaction(hash, { 
+          reconciliationStatus: 'reconciled',
+          orderId: orderId
+        });
+      }
+      
+      res.json({ 
+        success: true, 
+        message: `Added ${transactionHashes.length} commission transaction(s) to order ${orderId}` 
+      });
+    } catch (error: any) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ success: false, message: "Validation error", errors: error.errors });
+      }
+      res.status(500).json({ success: false, message: error.message });
+    }
+  });
+
   // Export reconciliation to XLSX file
   app.post("/api/export-reconciliation", async (req, res) => {
     try {
