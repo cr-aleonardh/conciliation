@@ -345,21 +345,112 @@ export async function registerRoutes(
     }
   });
 
-  // Get commission transactions (amounts between 3.50 and 4.50) and all orders
+  // Transaction Links endpoints
+  app.get("/api/transaction-links", async (req, res) => {
+    try {
+      const links = await storage.getTransactionLinks();
+      res.json(links);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/transaction-links", async (req, res) => {
+    try {
+      const { primaryTransactionHash, linkedTransactionHash, linkType, status } = req.body;
+      const link = await storage.createTransactionLink({
+        primaryTransactionHash,
+        linkedTransactionHash,
+        linkType: linkType || 'commission',
+        status: status || 'suggested'
+      });
+      res.status(201).json(link);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/transaction-links/bulk", async (req, res) => {
+    try {
+      const links = req.body.links || [];
+      const created = await storage.createTransactionLinks(links);
+      res.status(201).json({ count: created.length, links: created });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.patch("/api/transaction-links/:id/confirm", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const link = await storage.confirmTransactionLink(id);
+      if (!link) {
+        return res.status(404).json({ message: "Link not found" });
+      }
+      res.json(link);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.delete("/api/transaction-links/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      await storage.deleteTransactionLink(id);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Get commission transactions (amounts between 3.50 and 4.50) and orders missing commission
   app.get("/api/commission-data", async (req, res) => {
     try {
       const allTransactions = await storage.getBankTransactions();
       const allOrders = await storage.getOrders();
+      const allLinks = await storage.getTransactionLinks();
       
-      // Filter transactions with amounts between 3.50 and 4.50
-      const commissionTransactions = allTransactions.filter(t => {
+      // Create a set of transaction hashes that are already linked
+      const linkedHashes = new Set<string>();
+      allLinks.forEach(link => {
+        linkedHashes.add(link.primaryTransactionHash);
+        linkedHashes.add(link.linkedTransactionHash);
+      });
+      
+      // Filter commission transactions (3.50 - 4.50) that are unmatched and not linked
+      const orphanCommissions = allTransactions.filter(t => {
         const amount = parseFloat(t.creditAmount || '0');
-        return amount >= 3.50 && amount <= 4.50;
+        const isCommissionAmount = amount >= 3.50 && amount <= 4.50;
+        const isUnmatched = t.reconciliationStatus === 'unmatched';
+        const isNotLinked = !linkedHashes.has(t.transactionHash);
+        return isCommissionAmount && isUnmatched && isNotLinked;
+      });
+      
+      // Find orders that are reconciled but missing commission amount
+      // (sum of linked bank transactions is less than order total by commission amount)
+      const ordersMissingCommission = allOrders.filter(order => {
+        if (order.reconciliationStatus !== 'reconciled') return false;
+        
+        const orderTotal = parseFloat(order.amountTotalFee || '0');
+        const orderFee = parseFloat(order.fee || '0');
+        
+        // Get all transactions linked to this order
+        const linkedTransactionIds = order.transactionIds || [];
+        const linkedTransactionTotal = linkedTransactionIds.reduce((sum, txId) => {
+          const tx = allTransactions.find(t => t.transactionHash === txId);
+          return sum + (tx ? parseFloat(tx.creditAmount || '0') : 0);
+        }, 0);
+        
+        // Calculate missing amount
+        const missingAmount = orderTotal - linkedTransactionTotal;
+        
+        // If missing amount is in commission range (3.50 - 4.50), order needs commission
+        return missingAmount >= 3.40 && missingAmount <= 4.60;
       });
       
       res.json({ 
-        transactions: commissionTransactions, 
-        orders: allOrders 
+        transactions: orphanCommissions, 
+        orders: ordersMissingCommission 
       });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
