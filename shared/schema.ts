@@ -43,16 +43,6 @@ export const orders = pgTable("orders", {
   transactionIds: text("transaction_ids").array(),
 });
 
-export const transactionLinks = pgTable("transaction_links", {
-  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
-  primaryTransactionHash: text("primary_transaction_hash").notNull(),
-  linkedTransactionHash: text("linked_transaction_hash").notNull(),
-  linkType: text("link_type").notNull().default('commission'),
-  status: text("status").notNull().default('suggested'),
-  createdAt: timestamp("created_at", { mode: 'string' }).notNull().default(sql`now()`),
-  confirmedAt: timestamp("confirmed_at", { mode: 'string' }),
-});
-
 export const insertBankTransactionSchema = createInsertSchema(bankTransactions).omit({
   importedAt: true,
   reconciledAt: true,
@@ -63,16 +53,8 @@ export const insertOrderSchema = createInsertSchema(orders).omit({
   reconciledAt: true,
 });
 
-export const insertTransactionLinkSchema = createInsertSchema(transactionLinks).omit({
-  createdAt: true,
-  confirmedAt: true,
-});
-
 export type InsertBankTransaction = z.infer<typeof insertBankTransactionSchema>;
 export type BankTransaction = typeof bankTransactions.$inferSelect;
 
 export type InsertOrder = z.infer<typeof insertOrderSchema>;
 export type Order = typeof orders.$inferSelect;
-
-export type InsertTransactionLink = z.infer<typeof insertTransactionLinkSchema>;
-export type TransactionLink = typeof transactionLinks.$inferSelect;

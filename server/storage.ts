@@ -3,14 +3,11 @@ import {
   type InsertBankTransaction, 
   type Order, 
   type InsertOrder,
-  type TransactionLink,
-  type InsertTransactionLink,
   bankTransactions,
-  orders,
-  transactionLinks
+  orders
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, inArray, or, ilike, sql, ne } from "drizzle-orm";
+import { eq, and, inArray, or, ilike, sql } from "drizzle-orm";
 
 export interface IStorage {
   // Bank Transactions
@@ -39,15 +36,6 @@ export interface IStorage {
   
   // Reconciled Records
   getReconciledRecords(): Promise<{ transactions: BankTransaction[]; orders: Order[] }>;
-
-  // Transaction Links
-  getTransactionLinks(): Promise<TransactionLink[]>;
-  getTransactionLinksByStatus(status: string): Promise<TransactionLink[]>;
-  createTransactionLink(link: InsertTransactionLink): Promise<TransactionLink>;
-  createTransactionLinks(links: InsertTransactionLink[]): Promise<TransactionLink[]>;
-  confirmTransactionLink(id: number): Promise<TransactionLink | undefined>;
-  deleteTransactionLink(id: number): Promise<void>;
-  deleteTransactionLinksByHashes(hashes: string[]): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -314,49 +302,6 @@ export class DatabaseStorage implements IStorage {
       .where(eq(orders.reconciliationStatus, 'reconciled'));
     
     return { transactions: reconciledTransactions, orders: reconciledOrders };
-  }
-
-  // Transaction Links
-  async getTransactionLinks(): Promise<TransactionLink[]> {
-    return await db.select().from(transactionLinks);
-  }
-
-  async getTransactionLinksByStatus(status: string): Promise<TransactionLink[]> {
-    return await db.select().from(transactionLinks).where(eq(transactionLinks.status, status));
-  }
-
-  async createTransactionLink(link: InsertTransactionLink): Promise<TransactionLink> {
-    const results = await db.insert(transactionLinks).values(link).returning();
-    return results[0];
-  }
-
-  async createTransactionLinks(links: InsertTransactionLink[]): Promise<TransactionLink[]> {
-    if (links.length === 0) return [];
-    return await db.insert(transactionLinks).values(links).returning();
-  }
-
-  async confirmTransactionLink(id: number): Promise<TransactionLink | undefined> {
-    const now = new Date().toISOString();
-    const results = await db
-      .update(transactionLinks)
-      .set({ status: 'confirmed', confirmedAt: now })
-      .where(eq(transactionLinks.id, id))
-      .returning();
-    return results[0];
-  }
-
-  async deleteTransactionLink(id: number): Promise<void> {
-    await db.delete(transactionLinks).where(eq(transactionLinks.id, id));
-  }
-
-  async deleteTransactionLinksByHashes(hashes: string[]): Promise<void> {
-    if (hashes.length === 0) return;
-    await db.delete(transactionLinks).where(
-      or(
-        inArray(transactionLinks.primaryTransactionHash, hashes),
-        inArray(transactionLinks.linkedTransactionHash, hashes)
-      )
-    );
   }
 }
 
