@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Link } from 'wouter';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, ArrowRightLeft, X, RefreshCw, Layers, Keyboard, Eye, EyeOff, CheckCircle2, ArrowUpDown, ArrowUp, ArrowDown, Sparkles, Check, ThumbsUp, ThumbsDown, XCircle, History, GripHorizontal, Unlink, Upload, DownloadCloud, ChevronDown, ChevronRight, CalendarIcon, List } from 'lucide-react';
+import { Search, ArrowRightLeft, X, RefreshCw, Layers, Keyboard, Eye, EyeOff, CheckCircle2, ArrowUpDown, ArrowUp, ArrowDown, Sparkles, Check, ThumbsUp, ThumbsDown, XCircle, History, GripHorizontal, Unlink, Upload, DownloadCloud, ChevronDown, ChevronRight, CalendarIcon, List, Link2, Link2Off } from 'lucide-react';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 
@@ -27,6 +27,16 @@ export interface Remittance {
   reconciliationStatus?: string;
   matchedBankIds?: string[];
   suggestedMatchId?: string;
+}
+
+export interface TransactionLink {
+  id: number;
+  primaryTransactionHash: string;
+  linkedTransactionHash: string;
+  linkType: string;
+  status: string;
+  createdAt: string;
+  confirmedAt?: string;
 }
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -583,6 +593,10 @@ export default function ReconciliationPage({ isAdmin = false }: ReconciliationPa
   // Suggestions State
   const [isRunningSuggestions, setIsRunningSuggestions] = useState(false);
 
+  // Transaction Links State
+  const [transactionLinks, setTransactionLinks] = useState<TransactionLink[]>([]);
+  const [showLinks, setShowLinks] = useState(true);
+
   // Reconcile State
   const [isReconciling, setIsReconciling] = useState(false);
   const [reconcileStatus, setReconcileStatus] = useState<{ type: 'success' | 'error', message: string } | null>(null);
@@ -747,10 +761,11 @@ export default function ReconciliationPage({ isAdmin = false }: ReconciliationPa
       const result = await response.json();
       
       if (result.success) {
-        // Refresh both bank transactions and orders to show updated suggestions
-        const [bankResponse, ordersResponse] = await Promise.all([
+        // Refresh bank transactions, orders, and transaction links to show updated suggestions
+        const [bankResponse, ordersResponse, linksResponse] = await Promise.all([
           fetch('/api/bank-transactions'),
-          fetch('/api/orders')
+          fetch('/api/orders'),
+          fetch('/api/transaction-links')
         ]);
         
         if (bankResponse.ok) {
@@ -785,6 +800,12 @@ export default function ReconciliationPage({ isAdmin = false }: ReconciliationPa
             suggestedMatchId: o.transactionIds?.[0] || undefined
           }));
           setRemittances(transformedRemittances);
+        }
+
+        if (linksResponse.ok) {
+          const links = await linksResponse.json();
+          setTransactionLinks(links);
+          setShowLinks(true);
         }
         
         setShowSuggestions(true);
@@ -915,9 +936,10 @@ export default function ReconciliationPage({ isAdmin = false }: ReconciliationPa
   useEffect(() => {
     const loadInitialData = async () => {
       try {
-        const [bankResponse, ordersResponse] = await Promise.all([
+        const [bankResponse, ordersResponse, linksResponse] = await Promise.all([
           fetch('/api/bank-transactions'),
-          fetch('/api/orders')
+          fetch('/api/orders'),
+          fetch('/api/transaction-links')
         ]);
         
         if (bankResponse.ok) {
@@ -951,6 +973,11 @@ export default function ReconciliationPage({ isAdmin = false }: ReconciliationPa
             matchedBankIds: o.transactionIds || undefined
           }));
           setRemittances(transformedRemittances);
+        }
+
+        if (linksResponse.ok) {
+          const links = await linksResponse.json();
+          setTransactionLinks(links);
         }
       } catch (error) {
         console.error('Failed to load initial data:', error);
@@ -1077,6 +1104,46 @@ export default function ReconciliationPage({ isAdmin = false }: ReconciliationPa
     suggestedMatches.forEach(({ remittance, bankTransaction }) => {
       handleApproveSuggestion(remittance.id, bankTransaction.id);
     });
+  };
+
+  // Transaction Links Logic
+  const suggestedLinks = useMemo(() => {
+    return transactionLinks
+      .filter(link => link.status === 'suggested')
+      .map(link => {
+        const primaryTx = bankTransactions.find(b => b.id === link.primaryTransactionHash);
+        const linkedTx = bankTransactions.find(b => b.id === link.linkedTransactionHash);
+        return primaryTx && linkedTx ? { link, primaryTx, linkedTx } : null;
+      })
+      .filter((item): item is { link: TransactionLink, primaryTx: BankTransaction, linkedTx: BankTransaction } => item !== null);
+  }, [transactionLinks, bankTransactions]);
+
+  const handleConfirmLink = async (linkId: number) => {
+    try {
+      await fetch(`/api/transaction-links/${linkId}/confirm`, { method: 'PATCH' });
+      setTransactionLinks(prev => prev.map(l => 
+        l.id === linkId ? { ...l, status: 'confirmed' } : l
+      ));
+      toast({ title: "Link confirmed", description: "The transaction link has been confirmed." });
+    } catch (error) {
+      console.error('Failed to confirm link:', error);
+      toast({ title: "Error", description: "Failed to confirm the link.", variant: "destructive" });
+    }
+  };
+
+  const handleRejectLink = async (linkId: number) => {
+    try {
+      await fetch(`/api/transaction-links/${linkId}`, { method: 'DELETE' });
+      setTransactionLinks(prev => prev.filter(l => l.id !== linkId));
+      toast({ title: "Link removed", description: "The transaction link has been removed." });
+    } catch (error) {
+      console.error('Failed to reject link:', error);
+      toast({ title: "Error", description: "Failed to remove the link.", variant: "destructive" });
+    }
+  };
+
+  const handleConfirmAllLinks = () => {
+    suggestedLinks.forEach(({ link }) => handleConfirmLink(link.id));
   };
 
   // Unmatch Logic
@@ -1715,6 +1782,121 @@ export default function ReconciliationPage({ isAdmin = false }: ReconciliationPa
                  }}
                >
                   <GripHorizontal className="w-4 h-4 text-amber-500/30" />
+               </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Transaction Links Section */}
+        <AnimatePresence>
+          {suggestedLinks.length > 0 && showLinks && (
+            <motion.div 
+              initial={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              className="bg-purple-500/5 border-b border-purple-500/20 shrink-0 flex flex-col"
+            >
+               <div className="px-6 py-3 flex items-center justify-between shrink-0">
+                  <div className="flex items-center gap-2 text-purple-600 dark:text-purple-400">
+                     <Link2 className="w-4 h-4" />
+                     <span className="text-sm font-semibold">Suggested Transaction Links</span>
+                     <Badge variant="secondary" className="bg-purple-500/10 text-purple-700 hover:bg-purple-500/20 border-0">
+                       {suggestedLinks.length} pending
+                     </Badge>
+                  </div>
+                  <div className="flex items-center gap-2">
+                     <Button size="sm" variant="ghost" className="text-xs h-7 text-muted-foreground hover:text-foreground" onClick={() => setShowLinks(false)}>
+                        Dismiss
+                     </Button>
+                     <Button size="sm" className="h-7 text-xs bg-purple-500 hover:bg-purple-600 text-white border-0" onClick={handleConfirmAllLinks}>
+                        Confirm All
+                     </Button>
+                  </div>
+               </div>
+               
+               <div className="px-6 pb-3 overflow-y-auto max-h-[200px] space-y-2">
+                  {suggestedLinks.map(({ link, primaryTx, linkedTx }) => (
+                    <motion.div 
+                      key={link.id}
+                      layout
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="flex items-center gap-3 p-3 rounded-lg border border-purple-500/30 bg-purple-500/5"
+                    >
+                      {/* Primary Transaction */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-mono text-muted-foreground">{primaryTx.date}</span>
+                          <Badge variant="secondary" className="text-xs h-5 px-1.5 font-mono bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300">
+                            {primaryTx.reference || '-'}
+                          </Badge>
+                        </div>
+                        <div className="text-sm font-medium truncate">{primaryTx.payee}</div>
+                        <div className="text-base font-mono font-bold text-cyan-400">
+                          {primaryTx.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                        </div>
+                      </div>
+
+                      {/* Link Indicator */}
+                      <div className="flex flex-col items-center gap-1 px-2">
+                        <Link2 className="w-5 h-5 text-purple-500" />
+                        <span className="text-[10px] uppercase text-purple-400 font-semibold">Link</span>
+                      </div>
+
+                      {/* Linked Transaction (Commission) */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-mono text-muted-foreground">{linkedTx.date}</span>
+                          <Badge variant="secondary" className="text-xs h-5 px-1.5 font-mono bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300">
+                            {linkedTx.reference || '-'}
+                          </Badge>
+                          <Badge variant="outline" className="text-[10px] h-4 px-1 bg-purple-500/10">Commission</Badge>
+                        </div>
+                        <div className="text-sm font-medium truncate">{linkedTx.payee}</div>
+                        <div className="text-base font-mono font-bold text-emerald-400">
+                          {linkedTx.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                        </div>
+                      </div>
+
+                      {/* Combined Total */}
+                      <div className="text-right px-3 border-l border-purple-500/20">
+                        <div className="text-[10px] uppercase text-muted-foreground">Total</div>
+                        <div className="text-lg font-mono font-bold text-foreground">
+                          {(primaryTx.amount + linkedTx.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                        </div>
+                      </div>
+
+                      {/* Actions */}
+                      <div className="flex items-center gap-1">
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button 
+                              size="sm" 
+                              variant="ghost" 
+                              className="h-8 w-8 p-0 text-green-600 hover:text-green-500 hover:bg-green-500/10"
+                              onClick={() => handleConfirmLink(link.id)}
+                            >
+                              <ThumbsUp className="w-4 h-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Confirm Link</TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button 
+                              size="sm" 
+                              variant="ghost" 
+                              className="h-8 w-8 p-0 text-red-600 hover:text-red-500 hover:bg-red-500/10"
+                              onClick={() => handleRejectLink(link.id)}
+                            >
+                              <ThumbsDown className="w-4 h-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Reject Link</TooltipContent>
+                        </Tooltip>
+                      </div>
+                    </motion.div>
+                  ))}
                </div>
             </motion.div>
           )}
