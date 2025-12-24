@@ -9,6 +9,7 @@ import ReconciliationPage from "@/pages/reconciliation";
 import ReconciledPage from "@/pages/reconciled";
 import AllTransactionsPage from "@/pages/all-transactions";
 import UnreconciledTransactionsPage from "@/pages/unreconciled-transactions";
+import BatchesPage from "@/pages/batches";
 import LoginPage from "@/pages/login";
 
 function App() {
@@ -50,6 +51,7 @@ function App() {
           <Toaster />
           <Switch>
             <Route path="/all-transactions" component={() => <AllTransactionsPage isViewer={true} />} />
+            <Route path="/batches" component={BatchesPage} />
             <Route><Redirect to="/all-transactions" /></Route>
           </Switch>
         </TooltipProvider>
@@ -65,6 +67,7 @@ function App() {
           <Route path="/" component={() => <ReconciliationPage isAdmin={isAdmin} />} />
           <Route path="/reconciled" component={ReconciledPage} />
           <Route path="/all-transactions" component={() => <AllTransactionsPage isAdmin={isAdmin} />} />
+          <Route path="/batches" component={BatchesPage} />
           {isAdmin && <Route path="/manage-unreconciled" component={UnreconciledTransactionsPage} />}
           <Route component={NotFound} />
         </Switch>

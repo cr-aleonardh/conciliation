@@ -23,7 +23,8 @@ import {
   ArrowLeft,
   CalendarIcon,
   X,
-  Settings
+  Settings,
+  Layers
 } from "lucide-react";
 import { Link } from "wouter";
 import { format } from "date-fns";
@@ -243,6 +244,17 @@ export default function AllTransactionsPage({ isViewer = false, isAdmin = false 
               </CardTitle>
               
               <div className="flex items-center gap-3">
+                <Link href="/batches">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="border-cyan-600 text-cyan-400 hover:bg-cyan-900/30"
+                    data-testid="button-batches"
+                  >
+                    <Layers className="w-4 h-4 mr-2" />
+                    Batches
+                  </Button>
+                </Link>
                 <Button
                   variant="outline"
                   size="sm"
