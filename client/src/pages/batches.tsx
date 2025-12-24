@@ -12,8 +12,7 @@ import {
   Download,
   ChevronDown,
   ChevronRight,
-  CheckCircle2,
-  Undo2
+  CheckCircle2
 } from "lucide-react";
 import { Link } from "wouter";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -26,13 +25,10 @@ interface BatchGroup {
   totalAmount: number;
 }
 
-const BatchCard = ({ batch, onRegenerate, isRegenerating, isAdmin, onUnconciliate, unconciliatingOrderId }: { 
+const BatchCard = ({ batch, onRegenerate, isRegenerating }: { 
   batch: BatchGroup; 
   onRegenerate: (batchId: number, orderIds: number[]) => void;
   isRegenerating: boolean;
-  isAdmin?: boolean;
-  onUnconciliate: (orderId: number, transactionHashes: string[]) => void;
-  unconciliatingOrderId: number | null;
 }) => {
   const [isOpen, setIsOpen] = useState(true);
   
@@ -104,25 +100,12 @@ const BatchCard = ({ batch, onRegenerate, isRegenerating, isAdmin, onUnconciliat
                   </div>
                 ))}
               </div>
-              <div className="w-64 p-3 bg-slate-800/50 flex flex-col justify-center">
+              <div className="w-48 p-3 bg-slate-800/50 flex flex-col justify-center">
                 <div className="flex items-center justify-between text-sm">
                   <div className="flex items-center gap-2">
                     <span className="text-xs text-slate-500">#{order.orderId}</span>
-                    <span className="text-slate-400 truncate max-w-[80px]">{order.customerName}</span>
+                    <span className="text-slate-400 truncate max-w-[100px]">{order.customerName}</span>
                   </div>
-                  {isAdmin && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => onUnconciliate(order.orderId, transactions.map((t: any) => t.transactionHash))}
-                      disabled={unconciliatingOrderId === order.orderId}
-                      className="h-6 px-2 text-xs text-amber-400 hover:text-amber-300 hover:bg-amber-900/30"
-                      data-testid={`button-unconciliate-${order.orderId}`}
-                    >
-                      <Undo2 className="w-3 h-3 mr-1" />
-                      {unconciliatingOrderId === order.orderId ? "..." : "Undo"}
-                    </Button>
-                  )}
                 </div>
                 <span className="font-mono text-pink-400 text-sm">{parseFloat(order.amountTotalFee).toLocaleString()}</span>
               </div>
@@ -134,17 +117,12 @@ const BatchCard = ({ batch, onRegenerate, isRegenerating, isAdmin, onUnconciliat
   );
 };
 
-interface BatchesPageProps {
-  isAdmin?: boolean;
-}
-
-export default function BatchesPage({ isAdmin = false }: BatchesPageProps) {
+export default function BatchesPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [regeneratingBatchId, setRegeneratingBatchId] = useState<number | null>(null);
-  const [unconciliatingOrderId, setUnconciliatingOrderId] = useState<number | null>(null);
   const { toast } = useToast();
 
-  const { data: reconciledData = { transactions: [], orders: [] }, isLoading, refetch } = useQuery<{
+  const { data: reconciledData = { transactions: [], orders: [] }, isLoading } = useQuery<{
     transactions: any[];
     orders: any[];
   }>({
@@ -266,47 +244,6 @@ export default function BatchesPage({ isAdmin = false }: BatchesPageProps) {
     }
   };
 
-  const handleUnconciliate = async (orderId: number, transactionHashes: string[]) => {
-    if (transactionHashes.length === 0) {
-      toast({
-        title: "Error",
-        description: "No transactions to unconciliate",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    setUnconciliatingOrderId(orderId);
-    
-    try {
-      const response = await fetch("/api/unconciliate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ transactionHashes, orderId })
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Failed to unconciliate");
-      }
-
-      toast({
-        title: "Success",
-        description: `Order #${orderId} has been unconciliated`
-      });
-      
-      refetch();
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to unconciliate",
-        variant: "destructive"
-      });
-    } finally {
-      setUnconciliatingOrderId(null);
-    }
-  };
-
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
       <header className="bg-slate-900 border-b border-slate-700 px-6 py-4">
@@ -387,9 +324,6 @@ export default function BatchesPage({ isAdmin = false }: BatchesPageProps) {
                     batch={batch} 
                     onRegenerate={handleRegenerate}
                     isRegenerating={regeneratingBatchId === batch.batchId}
-                    isAdmin={isAdmin}
-                    onUnconciliate={handleUnconciliate}
-                    unconciliatingOrderId={unconciliatingOrderId}
                   />
                 ))}
               </div>

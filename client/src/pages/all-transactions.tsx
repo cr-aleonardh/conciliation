@@ -24,13 +24,15 @@ import {
   CalendarIcon,
   X,
   Settings,
-  Layers
+  Layers,
+  Undo2
 } from "lucide-react";
 import { Link } from "wouter";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
+import { useToast } from "@/hooks/use-toast";
 import type { BankTransaction } from "@shared/schema";
 
 type SortField = "transactionDate" | "payerSender" | "extractedReference" | "creditAmount";
@@ -49,6 +51,8 @@ export default function AllTransactionsPage({ isViewer = false, isAdmin = false 
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
   const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
   const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
+  const [unconciliatingHash, setUnconciliatingHash] = useState<string | null>(null);
+  const { toast } = useToast();
 
   const { data: transactions = [], isLoading, refetch } = useQuery<BankTransaction[]>({
     queryKey: ["/api/bank-transactions"],
@@ -175,6 +179,43 @@ export default function AllTransactionsPage({ isViewer = false, isAdmin = false 
       setTimeout(() => setCopiedPayer(null), 1500);
     } catch (err) {
       console.error("Failed to copy:", err);
+    }
+  };
+
+  const handleUnconciliate = async (transaction: BankTransaction) => {
+    if (!transaction.orderId) return;
+    
+    setUnconciliatingHash(transaction.transactionHash);
+    
+    try {
+      const response = await fetch("/api/unconciliate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          transactionHashes: [transaction.transactionHash], 
+          orderId: transaction.orderId 
+        })
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Failed to unconciliate");
+      }
+
+      toast({
+        title: "Success",
+        description: `Transaction has been unconciliated`
+      });
+      
+      refetch();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to unconciliate",
+        variant: "destructive"
+      });
+    } finally {
+      setUnconciliatingHash(null);
     }
   };
 
@@ -404,6 +445,7 @@ export default function AllTransactionsPage({ isViewer = false, isAdmin = false 
                       </TableHead>
                       <TableHead className="text-slate-400">Status</TableHead>
                       <TableHead className="text-slate-400">Order ID</TableHead>
+                      {isAdmin && <TableHead className="text-slate-400">Actions</TableHead>}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -447,6 +489,25 @@ export default function AllTransactionsPage({ isViewer = false, isAdmin = false 
                         <TableCell className="text-slate-400" data-testid={`text-orderid-${transaction.transactionHash}`}>
                           {transaction.orderId || "-"}
                         </TableCell>
+                        {isAdmin && (
+                          <TableCell>
+                            {transaction.reconciliationStatus === "reconciled" && transaction.orderId ? (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleUnconciliate(transaction)}
+                                disabled={unconciliatingHash === transaction.transactionHash}
+                                className="h-7 px-2 text-xs text-amber-400 hover:text-amber-300 hover:bg-amber-900/30"
+                                data-testid={`button-undo-${transaction.transactionHash}`}
+                              >
+                                <Undo2 className="w-3 h-3 mr-1" />
+                                {unconciliatingHash === transaction.transactionHash ? "..." : "Undo"}
+                              </Button>
+                            ) : (
+                              <span className="text-slate-600">-</span>
+                            )}
+                          </TableCell>
+                        )}
                       </TableRow>
                     ))}
                   </TableBody>
