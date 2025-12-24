@@ -147,14 +147,15 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Matching Operations
-  async matchTransactionToOrder(transactionHash: string, orderId: number, status: string): Promise<void> {
+  async matchTransactionToOrder(transactionHash: string, orderId: number, status: string, reasonToOverride?: string): Promise<void> {
     await db.transaction(async (tx: any) => {
       // Update transaction
       await tx
         .update(bankTransactions)
         .set({ 
           orderId, 
-          reconciliationStatus: status 
+          reconciliationStatus: status,
+          reasonToOverride: reasonToOverride || null
         })
         .where(eq(bankTransactions.transactionHash, transactionHash));
 
@@ -167,7 +168,8 @@ export class DatabaseStorage implements IStorage {
             .update(orders)
             .set({ 
               transactionIds: [...currentTransactionIds, transactionHash],
-              reconciliationStatus: status
+              reconciliationStatus: status,
+              reasonToOverride: reasonToOverride || null
             })
             .where(eq(orders.orderId, orderId));
         }

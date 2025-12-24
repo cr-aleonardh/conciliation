@@ -20,6 +20,7 @@ export const bankTransactions = pgTable("bank_transactions", {
   batchId: integer("batch_id"),
   importedAt: timestamp("imported_at", { mode: 'string' }).notNull().default(sql`now()`),
   reconciledAt: timestamp("reconciled_at", { mode: 'string' }),
+  reasonToOverride: text("reason_to_override"),
 });
 
 export const orders = pgTable("orders", {
@@ -41,6 +42,7 @@ export const orders = pgTable("orders", {
   fetchedAt: timestamp("fetched_at", { mode: 'string' }).notNull().default(sql`now()`),
   reconciledAt: timestamp("reconciled_at", { mode: 'string' }),
   transactionIds: text("transaction_ids").array(),
+  reasonToOverride: text("reason_to_override"),
 });
 
 export const insertBankTransactionSchema = createInsertSchema(bankTransactions).omit({
