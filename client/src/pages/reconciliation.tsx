@@ -588,6 +588,10 @@ export default function ReconciliationPage({ isAdmin = false }: ReconciliationPa
   const [reconcileStatus, setReconcileStatus] = useState<{ type: 'success' | 'error', message: string } | null>(null);
   const [showReconcileConfirm, setShowReconcileConfirm] = useState(false);
 
+  // Amount Difference Warning State
+  const [showAmountWarning, setShowAmountWarning] = useState(false);
+  const [pendingMatch, setPendingMatch] = useState<{ remitId: string; bankId: string; difference: number } | null>(null);
+
   // Fetch All Orders Modal State (Admin only)
   const [showFetchAllModal, setShowFetchAllModal] = useState(false);
   const [fetchAllStartDate, setFetchAllStartDate] = useState<Date | undefined>(undefined);
@@ -1049,7 +1053,7 @@ export default function ReconciliationPage({ isAdmin = false }: ReconciliationPa
     }).filter((pair): pair is { remittance: Remittance, bankTransaction: BankTransaction } => pair !== null);
   }, [remittances, bankTransactions]);
 
-  const handleApproveSuggestion = async (remitId: string, bankId: string) => {
+  const executeMatch = async (remitId: string, bankId: string) => {
     try {
       await fetch('/api/match', {
         method: 'POST',
@@ -1066,6 +1070,37 @@ export default function ReconciliationPage({ isAdmin = false }: ReconciliationPa
     } catch (error) {
       console.error('Failed to approve suggestion:', error);
     }
+  };
+
+  const handleApproveSuggestion = async (remitId: string, bankId: string) => {
+    // Find the remittance and bank transaction to check amounts
+    const remit = remittances.find(r => r.id === remitId);
+    const bank = bankTransactions.find(b => b.id === bankId);
+    
+    if (remit && bank) {
+      const difference = remit.amount - bank.amount;
+      // Show warning if order amount exceeds bank amount by more than 1.00
+      if (difference > 1.00) {
+        setPendingMatch({ remitId, bankId, difference });
+        setShowAmountWarning(true);
+        return;
+      }
+    }
+    
+    await executeMatch(remitId, bankId);
+  };
+
+  const handleConfirmAmountWarning = async () => {
+    if (pendingMatch) {
+      await executeMatch(pendingMatch.remitId, pendingMatch.bankId);
+      setPendingMatch(null);
+      setShowAmountWarning(false);
+    }
+  };
+
+  const handleCancelAmountWarning = () => {
+    setPendingMatch(null);
+    setShowAmountWarning(false);
   };
 
   const handleRejectSuggestion = (remitId: string, bankId: string) => {
@@ -1956,6 +1991,29 @@ export default function ReconciliationPage({ isAdmin = false }: ReconciliationPa
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleReconcile} className="bg-green-600 hover:bg-green-700">
               Yes, Reconcile
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Amount Difference Warning Dialog */}
+      <AlertDialog open={showAmountWarning} onOpenChange={setShowAmountWarning}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Amount Difference Warning</AlertDialogTitle>
+            <AlertDialogDescription className="space-y-3">
+              <p>
+                The order amount exceeds the bank transaction by <strong>{pendingMatch?.difference.toFixed(2)}</strong>
+              </p>
+              <p>
+                Link the transaction and the commission, or if the commission is missing, ask the client to send that amount.
+              </p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handleCancelAmountWarning}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmAmountWarning} className="bg-amber-600 hover:bg-amber-700">
+              Continue Matching
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
