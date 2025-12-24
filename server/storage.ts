@@ -31,6 +31,7 @@ export interface IStorage {
   // Matching Operations
   matchTransactionToOrder(transactionHash: string, orderId: number, status: string): Promise<void>;
   unmatchTransaction(transactionHash: string): Promise<void>;
+  unconciliateTransactions(transactionHashes: string[], orderId: number): Promise<void>;
   reconcileMatches(transactionHashes: string[], orderIds: number[]): Promise<void>;
   reconcileBatch(matches: { orderId: number; transactionHashes: string[] }[]): Promise<{ batchId: number }>;
   
@@ -207,6 +208,40 @@ export class DatabaseStorage implements IStorage {
             reconciliationStatus: 'unmatched' 
           })
           .where(eq(bankTransactions.transactionHash, transactionHash));
+      }
+    });
+  }
+
+  async unconciliateTransactions(transactionHashes: string[], orderId: number): Promise<void> {
+    await db.transaction(async (tx: any) => {
+      // Reset all transactions - clear orderId, batchId, reconciledAt, and set status to unmatched
+      if (transactionHashes.length > 0) {
+        await tx
+          .update(bankTransactions)
+          .set({ 
+            orderId: null,
+            batchId: null,
+            reconciledAt: null,
+            reconciliationStatus: 'unmatched'
+          })
+          .where(inArray(bankTransactions.transactionHash, transactionHashes));
+      }
+
+      // Update the order - remove transaction IDs and reset reconciliation status
+      const order = await tx.select().from(orders).where(eq(orders.orderId, orderId));
+      if (order[0]) {
+        const currentTransactionIds = order[0].transactionIds || [];
+        const updatedTransactionIds = currentTransactionIds.filter((id: string) => !transactionHashes.includes(id));
+        
+        await tx
+          .update(orders)
+          .set({ 
+            transactionIds: updatedTransactionIds.length > 0 ? updatedTransactionIds : null,
+            reconciliationStatus: updatedTransactionIds.length > 0 ? order[0].reconciliationStatus : 'unmatched',
+            batchId: updatedTransactionIds.length > 0 ? order[0].batchId : null,
+            reconciledAt: updatedTransactionIds.length > 0 ? order[0].reconciledAt : null
+          })
+          .where(eq(orders.orderId, orderId));
       }
     });
   }

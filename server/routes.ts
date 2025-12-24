@@ -244,6 +244,28 @@ export async function registerRoutes(
     }
   });
 
+  // Unconciliate - Admin only
+  app.post("/api/unconciliate", requireAuth, async (req, res) => {
+    try {
+      if (!req.session?.isAdmin) {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+      
+      const schema = z.object({
+        transactionHashes: z.array(z.string()),
+        orderId: z.number()
+      });
+      const { transactionHashes, orderId } = schema.parse(req.body);
+      await storage.unconciliateTransactions(transactionHashes, orderId);
+      res.json({ message: "Unconciliation completed successfully" });
+    } catch (error: any) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   app.post("/api/reconcile", async (req, res) => {
     try {
       const schema = z.object({
