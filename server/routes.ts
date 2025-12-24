@@ -428,25 +428,40 @@ export async function registerRoutes(
       
       // Find orders that are reconciled but missing commission amount
       // (sum of linked bank transactions is less than order total by commission amount)
-      const ordersMissingCommission = allOrders.filter(order => {
-        if (order.reconciliationStatus !== 'reconciled') return false;
-        
-        const orderTotal = parseFloat(order.amountTotalFee || '0');
-        const orderFee = parseFloat(order.fee || '0');
-        
-        // Get all transactions linked to this order
-        const linkedTransactionIds = order.transactionIds || [];
-        const linkedTransactionTotal = linkedTransactionIds.reduce((sum, txId) => {
-          const tx = allTransactions.find(t => t.transactionHash === txId);
-          return sum + (tx ? parseFloat(tx.creditAmount || '0') : 0);
-        }, 0);
-        
-        // Calculate missing amount
-        const missingAmount = orderTotal - linkedTransactionTotal;
-        
-        // If missing amount is in commission range (3.50 - 4.50), order needs commission
-        return missingAmount >= 3.40 && missingAmount <= 4.60;
-      });
+      const ordersMissingCommission = allOrders
+        .filter(order => {
+          if (order.reconciliationStatus !== 'reconciled') return false;
+          
+          const orderTotal = parseFloat(order.amountTotalFee || '0');
+          
+          // Get all transactions linked to this order
+          const linkedTransactionIds = order.transactionIds || [];
+          const linkedTransactionTotal = linkedTransactionIds.reduce((sum, txId) => {
+            const tx = allTransactions.find(t => t.transactionHash === txId);
+            return sum + (tx ? parseFloat(tx.creditAmount || '0') : 0);
+          }, 0);
+          
+          // Calculate missing amount
+          const missingAmount = orderTotal - linkedTransactionTotal;
+          
+          // If missing amount is in commission range (3.40 - 4.60), order needs commission
+          return missingAmount >= 3.40 && missingAmount <= 4.60;
+        })
+        .map(order => {
+          const orderTotal = parseFloat(order.amountTotalFee || '0');
+          const linkedTransactionIds = order.transactionIds || [];
+          const matchedTotal = linkedTransactionIds.reduce((sum, txId) => {
+            const tx = allTransactions.find(t => t.transactionHash === txId);
+            return sum + (tx ? parseFloat(tx.creditAmount || '0') : 0);
+          }, 0);
+          const missingAmount = orderTotal - matchedTotal;
+          
+          return {
+            ...order,
+            matchedTotal: matchedTotal.toFixed(2),
+            missingAmount: missingAmount.toFixed(2)
+          };
+        });
       
       res.json({ 
         transactions: orphanCommissions, 

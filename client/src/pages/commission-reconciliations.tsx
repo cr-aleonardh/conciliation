@@ -34,6 +34,8 @@ interface Order {
   status: 'unmatched' | 'matched' | 'suggested';
   reconciliationStatus?: string;
   matchedBankIds?: string[];
+  matchedTotal?: number;
+  missingAmount?: number;
 }
 
 type BankSortField = 'date' | 'payee' | 'amount';
@@ -173,6 +175,7 @@ const OrderRow = ({
   onClick: () => void 
 }) => {
   const isMatched = data.status === 'matched';
+  const hasMissingCommission = data.missingAmount !== undefined && data.missingAmount > 0;
   
   return (
     <motion.div
@@ -202,9 +205,11 @@ const OrderRow = ({
             {data.reference || '-'}
           </Badge>
           <span className="text-xs font-mono text-muted-foreground/40">#{data.orderNumber}</span>
-          <Badge variant="outline" className="text-[10px] h-4 px-1 font-normal">
-            {data.reconciliationStatus || 'unknown'}
-          </Badge>
+          {hasMissingCommission && (
+            <Badge variant="outline" className="text-[10px] h-4 px-1 bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400">
+              Missing: {data.missingAmount?.toFixed(2)}
+            </Badge>
+          )}
         </div>
         <ClickToCopy text={data.customerName}>
           <span className={cn("text-base font-medium transition-colors truncate", isMatched ? "text-muted-foreground line-through decoration-muted-foreground/30" : "text-foreground group-hover:text-primary")}>
@@ -212,8 +217,13 @@ const OrderRow = ({
           </span>
         </ClickToCopy>
       </div>
-      <div className="text-right pl-4 shrink-0">
+      <div className="text-right pl-4 shrink-0 flex flex-col items-end">
         <AmountDisplay amount={data.amount} type="order" dimmed={isMatched} />
+        {hasMissingCommission && data.matchedTotal !== undefined && (
+          <span className="text-[10px] text-muted-foreground font-mono">
+            Matched: {data.matchedTotal.toFixed(2)}
+          </span>
+        )}
       </div>
     </motion.div>
   );
@@ -268,7 +278,9 @@ export default function CommissionReconciliationsPage() {
           status: o.reconciliationStatus === 'unmatched' ? 'unmatched' : 
                  o.reconciliationStatus === 'suggested_match' ? 'suggested' : 'matched',
           reconciliationStatus: o.reconciliationStatus,
-          matchedBankIds: o.transactionIds || undefined
+          matchedBankIds: o.transactionIds || undefined,
+          matchedTotal: o.matchedTotal !== undefined ? parseFloat(o.matchedTotal) : undefined,
+          missingAmount: o.missingAmount !== undefined ? parseFloat(o.missingAmount) : undefined
         }));
         
         setBankTransactions(transformedBank);
@@ -472,8 +484,8 @@ export default function CommissionReconciliationsPage() {
                 <DollarSign className="w-4 h-4 text-white" />
               </div>
               <div>
-                <h1 className="text-lg font-semibold">Commission Reconciliations</h1>
-                <p className="text-xs text-muted-foreground">Match commission transactions (3.50 - 4.50)</p>
+                <h1 className="text-lg font-semibold">Commission Recovery</h1>
+                <p className="text-xs text-muted-foreground">Match orphan commission payments to orders missing their commission</p>
               </div>
             </div>
           </div>
@@ -552,7 +564,7 @@ export default function CommissionReconciliationsPage() {
             <div className="h-full flex flex-col p-4">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
-                  <h2 className="text-sm font-semibold text-cyan-400">Commission Transactions</h2>
+                  <h2 className="text-sm font-semibold text-cyan-400">Orphan Commission Payments</h2>
                   <Badge variant="secondary" className="text-xs">{filteredBankTransactions.length}</Badge>
                 </div>
                 <div className="flex items-center gap-1">
@@ -599,7 +611,7 @@ export default function CommissionReconciliationsPage() {
             <div className="h-full flex flex-col p-4">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
-                  <h2 className="text-sm font-semibold text-emerald-400">All Orders</h2>
+                  <h2 className="text-sm font-semibold text-emerald-400">Orders Missing Commission</h2>
                   <Badge variant="secondary" className="text-xs">{filteredOrders.length}</Badge>
                 </div>
                 <div className="flex items-center gap-1">
