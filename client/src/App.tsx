@@ -51,7 +51,7 @@ function App() {
           <Toaster />
           <Switch>
             <Route path="/all-transactions" component={() => <AllTransactionsPage isViewer={true} />} />
-            <Route path="/batches" component={BatchesPage} />
+            <Route path="/batches" component={() => <BatchesPage isAdmin={false} />} />
             <Route><Redirect to="/all-transactions" /></Route>
           </Switch>
         </TooltipProvider>
@@ -67,7 +67,7 @@ function App() {
           <Route path="/" component={() => <ReconciliationPage isAdmin={isAdmin} />} />
           <Route path="/reconciled" component={ReconciledPage} />
           <Route path="/all-transactions" component={() => <AllTransactionsPage isAdmin={isAdmin} />} />
-          <Route path="/batches" component={BatchesPage} />
+          <Route path="/batches" component={() => <BatchesPage isAdmin={isAdmin} />} />
           {isAdmin && <Route path="/manage-unreconciled" component={UnreconciledTransactionsPage} />}
           <Route component={NotFound} />
         </Switch>
