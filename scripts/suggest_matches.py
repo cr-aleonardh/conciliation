@@ -80,12 +80,118 @@ def check_name_match(bank_name, order_name, threshold=70):
     score = fuzz.ratio(bank_normalized, order_normalized)
     return score
 
+def suggest_transaction_links(conn, cur):
+    """
+    Find and suggest links between main payment transactions and commission transactions.
+    A commission is a transaction with amount between 3.50 and 4.50.
+    Links are suggested when main + commission have similar name/reference and close dates.
+    """
+    # Get unmatched commission transactions (3.50 - 4.50)
+    cur.execute("""
+        SELECT transaction_hash, payer_sender, transaction_date, 
+               credit_amount, extracted_reference
+        FROM bank_transactions 
+        WHERE reconciliation_status = 'unmatched'
+          AND CAST(credit_amount AS NUMERIC) >= 3.50 
+          AND CAST(credit_amount AS NUMERIC) <= 4.50
+    """)
+    commission_txns = cur.fetchall()
+    
+    # Get unmatched main transactions (amount > 10, excluding commissions)
+    cur.execute("""
+        SELECT transaction_hash, payer_sender, transaction_date, 
+               credit_amount, extracted_reference
+        FROM bank_transactions 
+        WHERE reconciliation_status = 'unmatched'
+          AND CAST(credit_amount AS NUMERIC) > 10
+    """)
+    main_txns = cur.fetchall()
+    
+    # Get existing links to avoid duplicates
+    cur.execute("""
+        SELECT primary_transaction_hash, linked_transaction_hash 
+        FROM transaction_links
+    """)
+    existing_links = set()
+    for row in cur.fetchall():
+        existing_links.add((row['primary_transaction_hash'], row['linked_transaction_hash']))
+        existing_links.add((row['linked_transaction_hash'], row['primary_transaction_hash']))
+    
+    print(f"Found {len(commission_txns)} commission transactions (3.50-4.50)")
+    print(f"Found {len(main_txns)} main transactions (>10)")
+    
+    links_count = 0
+    linked_commissions = set()
+    
+    for commission in commission_txns:
+        if commission['transaction_hash'] in linked_commissions:
+            continue
+            
+        best_match = None
+        best_score = 0
+        
+        for main in main_txns:
+            # Check if link already exists
+            if (main['transaction_hash'], commission['transaction_hash']) in existing_links:
+                continue
+            
+            # Check date proximity (commission within 5 days of main)
+            main_date = parse_date(main['transaction_date'])
+            comm_date = parse_date(commission['transaction_date'])
+            if main_date and comm_date:
+                date_diff = abs((comm_date - main_date).days)
+                if date_diff > 5:
+                    continue
+            else:
+                continue
+            
+            # Check reference match
+            ref_match = check_reference_match(
+                commission['extracted_reference'],
+                main['extracted_reference']
+            )
+            
+            # Check name similarity
+            name_score = check_name_match(
+                commission['payer_sender'],
+                main['payer_sender']
+            )
+            
+            # Calculate overall score
+            total_score = 0
+            if ref_match:
+                total_score = 100  # Perfect reference match
+            elif name_score >= 80:
+                total_score = name_score
+            
+            if total_score > best_score:
+                best_score = total_score
+                best_match = main
+        
+        # Create link if we found a good match
+        if best_match and best_score >= 70:
+            cur.execute("""
+                INSERT INTO transaction_links 
+                (primary_transaction_hash, linked_transaction_hash, link_type, status)
+                VALUES (%s, %s, 'commission', 'suggested')
+            """, (best_match['transaction_hash'], commission['transaction_hash']))
+            
+            linked_commissions.add(commission['transaction_hash'])
+            links_count += 1
+            print(f"Link suggested (score {best_score}): Main {best_match['transaction_hash'][:15]}... + Commission {commission['transaction_hash'][:15]}...")
+    
+    return links_count
+
 def run_suggestions():
     """Main function to find and mark suggested matches"""
     conn = get_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
     
     try:
+        # First, suggest transaction links (main + commission)
+        links_count = suggest_transaction_links(conn, cur)
+        print(f"Transaction links suggested: {links_count}")
+        
         cur.execute("""
             SELECT transaction_hash, payer_sender, transaction_date, 
                    credit_amount, extracted_reference
