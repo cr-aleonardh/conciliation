@@ -29,7 +29,7 @@ export interface IStorage {
   deleteOrder(id: number): Promise<void>;
 
   // Matching Operations
-  matchTransactionToOrder(transactionHash: string, orderId: number, status: string): Promise<void>;
+  matchTransactionToOrder(transactionHash: string, orderId: number, status: string, reasonToOverride?: string): Promise<void>;
   unmatchTransaction(transactionHash: string): Promise<void>;
   unconciliateTransactions(transactionHashes: string[], orderId: number): Promise<void>;
   reconcileMatches(transactionHashes: string[], orderIds: number[]): Promise<void>;
@@ -148,14 +148,15 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Matching Operations
-  async matchTransactionToOrder(transactionHash: string, orderId: number, status: string): Promise<void> {
+  async matchTransactionToOrder(transactionHash: string, orderId: number, status: string, reasonToOverride?: string): Promise<void> {
     await db.transaction(async (tx: any) => {
       // Update transaction
       await tx
         .update(bankTransactions)
         .set({ 
           orderId, 
-          reconciliationStatus: status 
+          reconciliationStatus: status,
+          reasonToOverride: reasonToOverride || null
         })
         .where(eq(bankTransactions.transactionHash, transactionHash));
 
