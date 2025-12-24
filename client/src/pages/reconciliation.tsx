@@ -591,6 +591,7 @@ export default function ReconciliationPage({ isAdmin = false }: ReconciliationPa
   // Amount Difference Warning State
   const [showAmountWarning, setShowAmountWarning] = useState(false);
   const [pendingMatch, setPendingMatch] = useState<{ remitId: string; bankIds: string[]; difference: number } | null>(null);
+  const [overrideReason, setOverrideReason] = useState("");
 
   // Fetch All Orders Modal State (Admin only)
   const [showFetchAllModal, setShowFetchAllModal] = useState(false);
@@ -1053,7 +1054,7 @@ export default function ReconciliationPage({ isAdmin = false }: ReconciliationPa
     }).filter((pair): pair is { remittance: Remittance, bankTransaction: BankTransaction } => pair !== null);
   }, [remittances, bankTransactions]);
 
-  const executeMatch = async (remitId: string, bankId: string) => {
+  const executeMatch = async (remitId: string, bankId: string, reasonToOverride?: string) => {
     try {
       await fetch('/api/match', {
         method: 'POST',
@@ -1061,7 +1062,8 @@ export default function ReconciliationPage({ isAdmin = false }: ReconciliationPa
         body: JSON.stringify({
           transactionHash: bankId,
           orderId: parseInt(remitId),
-          status: 'temporarily_matched'
+          status: 'temporarily_matched',
+          ...(reasonToOverride ? { reasonToOverride } : {})
         })
       });
       
@@ -1092,21 +1094,23 @@ export default function ReconciliationPage({ isAdmin = false }: ReconciliationPa
 
   const handleConfirmAmountWarning = async () => {
     if (pendingMatch) {
-      // Execute match for each bank transaction
+      // Execute match for each bank transaction with override reason
       for (const bankId of pendingMatch.bankIds) {
-        await executeMatch(pendingMatch.remitId, bankId);
+        await executeMatch(pendingMatch.remitId, bankId, overrideReason);
       }
       // Clear selection after manual match
       setSelectedBankIds(new Set());
       setSelectedRemitIds(new Set());
       setPendingMatch(null);
       setShowAmountWarning(false);
+      setOverrideReason("");
     }
   };
 
   const handleCancelAmountWarning = () => {
     setPendingMatch(null);
     setShowAmountWarning(false);
+    setOverrideReason("");
   };
 
   const handleRejectSuggestion = (remitId: string, bankId: string) => {
@@ -2030,8 +2034,32 @@ export default function ReconciliationPage({ isAdmin = false }: ReconciliationPa
               </p>
             </AlertDialogDescription>
           </AlertDialogHeader>
+          {isAdmin && (
+            <div className="space-y-3 py-2">
+              <div className="space-y-2">
+                <Label htmlFor="overrideReason">Reason to Override</Label>
+                <Input
+                  id="overrideReason"
+                  data-testid="input-override-reason"
+                  placeholder="Enter reason to override this warning..."
+                  value={overrideReason}
+                  onChange={(e) => setOverrideReason(e.target.value)}
+                />
+              </div>
+            </div>
+          )}
           <AlertDialogFooter>
             <AlertDialogCancel onClick={handleCancelAmountWarning}>OK</AlertDialogCancel>
+            {isAdmin && (
+              <AlertDialogAction 
+                onClick={handleConfirmAmountWarning} 
+                disabled={!overrideReason.trim()}
+                data-testid="button-override-warning"
+                className="bg-orange-600 hover:bg-orange-700"
+              >
+                Override Warning
+              </AlertDialogAction>
+            )}
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
