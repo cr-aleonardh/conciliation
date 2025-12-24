@@ -459,6 +459,16 @@ export async function registerRoutes(
         linkedHashes.add(link.linkedTransactionHash);
       });
       
+      // Build a map of orderId -> transactions linked to that order (via bank_transactions.order_id)
+      const orderTransactionsMap = new Map<number, typeof allTransactions>();
+      allTransactions.forEach(tx => {
+        if (tx.orderId) {
+          const existing = orderTransactionsMap.get(tx.orderId) || [];
+          existing.push(tx);
+          orderTransactionsMap.set(tx.orderId, existing);
+        }
+      });
+      
       // Filter commission transactions (3.50 - 4.50) that are unmatched and not linked
       const orphanCommissions = allTransactions.filter(t => {
         const amount = parseFloat(t.creditAmount || '0');
@@ -468,18 +478,30 @@ export async function registerRoutes(
         return isCommissionAmount && isUnmatched && isNotLinked;
       });
       
-      // Find orders that are reconciled but missing commission amount
-      // (sum of linked bank transactions is less than order total by commission amount)
+      // Find orders that have at least one transaction linked but are missing commission
+      // Check both order.transactionIds AND bank_transactions.order_id
       const ordersMissingCommission = allOrders
         .filter(order => {
-          if (order.reconciliationStatus !== 'reconciled') return false;
-          
           const orderTotal = parseFloat(order.amountTotalFee || '0');
           
-          // Get all transactions linked to this order
-          const linkedTransactionIds = order.transactionIds || [];
-          const linkedTransactionTotal = linkedTransactionIds.reduce((sum, txId) => {
-            const tx = allTransactions.find(t => t.transactionHash === txId);
+          // Get transactions linked via order.transactionIds
+          const linkedViaOrder = order.transactionIds || [];
+          
+          // Get transactions linked via bank_transactions.order_id
+          const linkedViaTx = orderTransactionsMap.get(order.orderId) || [];
+          
+          // Combine both sources (deduplicate by hash)
+          const allLinkedHashes = new Set<string>([
+            ...linkedViaOrder,
+            ...linkedViaTx.map(tx => tx.transactionHash)
+          ]);
+          
+          // If no transactions linked at all, skip this order
+          if (allLinkedHashes.size === 0) return false;
+          
+          // Calculate total from all linked transactions
+          const linkedTransactionTotal = Array.from(allLinkedHashes).reduce((sum, txHash) => {
+            const tx = allTransactions.find(t => t.transactionHash === txHash);
             return sum + (tx ? parseFloat(tx.creditAmount || '0') : 0);
           }, 0);
           
@@ -491,9 +513,21 @@ export async function registerRoutes(
         })
         .map(order => {
           const orderTotal = parseFloat(order.amountTotalFee || '0');
-          const linkedTransactionIds = order.transactionIds || [];
-          const matchedTotal = linkedTransactionIds.reduce((sum, txId) => {
-            const tx = allTransactions.find(t => t.transactionHash === txId);
+          
+          // Get transactions linked via order.transactionIds
+          const linkedViaOrder = order.transactionIds || [];
+          
+          // Get transactions linked via bank_transactions.order_id
+          const linkedViaTx = orderTransactionsMap.get(order.orderId) || [];
+          
+          // Combine both sources (deduplicate by hash)
+          const allLinkedHashes = new Set<string>([
+            ...linkedViaOrder,
+            ...linkedViaTx.map(tx => tx.transactionHash)
+          ]);
+          
+          const matchedTotal = Array.from(allLinkedHashes).reduce((sum, txHash) => {
+            const tx = allTransactions.find(t => t.transactionHash === txHash);
             return sum + (tx ? parseFloat(tx.creditAmount || '0') : 0);
           }, 0);
           const missingAmount = orderTotal - matchedTotal;
