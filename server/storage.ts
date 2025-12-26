@@ -32,8 +32,8 @@ export interface IStorage {
   matchTransactionToOrder(transactionHash: string, orderId: number, status: string, reasonToOverride?: string): Promise<void>;
   unmatchTransaction(transactionHash: string): Promise<void>;
   unconciliateTransactions(transactionHashes: string[], orderId: number): Promise<void>;
-  reconcileMatches(transactionHashes: string[], orderIds: number[]): Promise<void>;
-  reconcileBatch(matches: { orderId: number; transactionHashes: string[] }[]): Promise<{ batchId: number }>;
+  reconcileMatches(transactionHashes: string[], orderIds: number[], reconciledBy: string): Promise<void>;
+  reconcileBatch(matches: { orderId: number; transactionHashes: string[] }[], reconciledBy: string): Promise<{ batchId: number }>;
   
   // Reconciled Records
   getReconciledRecords(): Promise<{ transactions: BankTransaction[]; orders: Order[] }>;
@@ -215,7 +215,7 @@ export class DatabaseStorage implements IStorage {
 
   async unconciliateTransactions(transactionHashes: string[], orderId: number): Promise<void> {
     await db.transaction(async (tx: any) => {
-      // Reset all transactions - clear orderId, batchId, reconciledAt, and set status to unmatched
+      // Reset all transactions - clear orderId, batchId, reconciledAt, reconciledBy, and set status to unmatched
       if (transactionHashes.length > 0) {
         await tx
           .update(bankTransactions)
@@ -223,6 +223,7 @@ export class DatabaseStorage implements IStorage {
             orderId: null,
             batchId: null,
             reconciledAt: null,
+            reconciledBy: null,
             reconciliationStatus: 'unmatched'
           })
           .where(inArray(bankTransactions.transactionHash, transactionHashes));
@@ -241,14 +242,15 @@ export class DatabaseStorage implements IStorage {
             transactionIds: updatedTransactionIds.length > 0 ? updatedTransactionIds : null,
             reconciliationStatus: 'unmatched',
             batchId: null,
-            reconciledAt: null
+            reconciledAt: null,
+            reconciledBy: null
           })
           .where(eq(orders.orderId, orderId));
       }
     });
   }
 
-  async reconcileMatches(transactionHashes: string[], orderIds: number[]): Promise<void> {
+  async reconcileMatches(transactionHashes: string[], orderIds: number[], reconciledBy: string): Promise<void> {
     await db.transaction(async (tx: any) => {
       const now = new Date().toISOString();
       
@@ -258,7 +260,8 @@ export class DatabaseStorage implements IStorage {
           .update(bankTransactions)
           .set({ 
             reconciliationStatus: 'reconciled',
-            reconciledAt: now
+            reconciledAt: now,
+            reconciledBy: reconciledBy
           })
           .where(inArray(bankTransactions.transactionHash, transactionHashes));
       }
@@ -269,14 +272,15 @@ export class DatabaseStorage implements IStorage {
           .update(orders)
           .set({ 
             reconciliationStatus: 'reconciled',
-            reconciledAt: now
+            reconciledAt: now,
+            reconciledBy: reconciledBy
           })
           .where(inArray(orders.orderId, orderIds));
       }
     });
   }
 
-  async reconcileBatch(matches: { orderId: number; transactionHashes: string[] }[]): Promise<{ batchId: number }> {
+  async reconcileBatch(matches: { orderId: number; transactionHashes: string[] }[], reconciledBy: string): Promise<{ batchId: number }> {
     return await db.transaction(async (tx: any) => {
       const now = new Date().toISOString();
       
@@ -305,6 +309,7 @@ export class DatabaseStorage implements IStorage {
             .set({ 
               reconciliationStatus: 'reconciled',
               reconciledAt: now,
+              reconciledBy: reconciledBy,
               batchId: newBatchId,
               orderId: orderId
             })
@@ -317,6 +322,7 @@ export class DatabaseStorage implements IStorage {
           .set({ 
             reconciliationStatus: 'reconciled',
             reconciledAt: now,
+            reconciledBy: reconciledBy,
             batchId: newBatchId,
             transactionIds: transactionHashes
           })
