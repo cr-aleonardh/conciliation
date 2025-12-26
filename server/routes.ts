@@ -13,7 +13,10 @@ const upload = multer({ storage: multer.memoryStorage() });
 const USERS = [
   { username: "curiara", password: "6W9XECy6zfpCrU", isAdmin: false, role: "operator" },
   { username: "curiara_admin", password: "y47oZXU0dLReiV4", isAdmin: true, role: "admin" },
-  { username: "viewer", password: "bPqQMX2aJrAzpf", isAdmin: false, role: "viewer" }
+  { username: "viewer", password: "bPqQMX2aJrAzpf", isAdmin: false, role: "viewer" },
+  { username: "enrique", password: "q2ERvveHjcZ1", isAdmin: false, role: "operator" },
+  { username: "miguel", password: "U1MswQzLJYkQ", isAdmin: false, role: "operator" },
+  { username: "antonio", password: "AmLnGz1LWMtq", isAdmin: false, role: "operator" }
 ];
 
 function requireAuth(req: Request, res: Response, next: NextFunction) {
