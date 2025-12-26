@@ -33,7 +33,7 @@ import { cn } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { useToast } from "@/hooks/use-toast";
-import type { BankTransaction } from "@shared/schema";
+import type { BankTransaction, Order } from "@shared/schema";
 
 type SortField = "transactionDate" | "payerSender" | "extractedReference" | "creditAmount";
 type SortDirection = "asc" | "desc";
@@ -62,6 +62,21 @@ export default function AllTransactionsPage({ isViewer = false, isAdmin = false 
       return response.json();
     },
   });
+
+  const { data: orders = [] } = useQuery<Order[]>({
+    queryKey: ["/api/orders"],
+    queryFn: async () => {
+      const response = await fetch("/api/orders");
+      if (!response.ok) throw new Error("Failed to fetch orders");
+      return response.json();
+    },
+  });
+
+  const ordersMap = useMemo(() => {
+    const map = new Map<number, Order>();
+    orders.forEach(order => map.set(order.orderId, order));
+    return map;
+  }, [orders]);
 
   const handleLogout = async () => {
     await fetch("/api/logout", { method: "POST" });
@@ -439,12 +454,14 @@ export default function AllTransactionsPage({ isViewer = false, isAdmin = false 
                         data-testid="header-amount"
                       >
                         <div className="flex items-center justify-end">
-                          Amount
+                          Tx Amount
                           <SortIcon field="creditAmount" />
                         </div>
                       </TableHead>
                       <TableHead className="text-slate-400">Status</TableHead>
                       <TableHead className="text-slate-400">Order ID</TableHead>
+                      <TableHead className="text-slate-400 text-right">Order Amount</TableHead>
+                      <TableHead className="text-slate-400">Reconciled At</TableHead>
                       {isAdmin && <TableHead className="text-slate-400">Actions</TableHead>}
                     </TableRow>
                   </TableHeader>
@@ -488,6 +505,18 @@ export default function AllTransactionsPage({ isViewer = false, isAdmin = false 
                         </TableCell>
                         <TableCell className="text-slate-400" data-testid={`text-orderid-${transaction.transactionHash}`}>
                           {transaction.orderId || "-"}
+                        </TableCell>
+                        <TableCell className="text-right" data-testid={`text-orderamount-${transaction.transactionHash}`}>
+                          {transaction.orderId && ordersMap.get(transaction.orderId) ? (
+                            <span className="font-mono text-purple-400">
+                              {formatAmount(ordersMap.get(transaction.orderId)!.amountTotalFee)}
+                            </span>
+                          ) : (
+                            <span className="text-slate-600">-</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-slate-400" data-testid={`text-reconciledat-${transaction.transactionHash}`}>
+                          {transaction.reconciledAt ? formatDate(transaction.reconciledAt) : "-"}
                         </TableCell>
                         {isAdmin && (
                           <TableCell>
