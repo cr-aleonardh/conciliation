@@ -20,6 +20,7 @@ export const bankTransactions = pgTable("bank_transactions", {
   batchId: integer("batch_id"),
   importedAt: timestamp("imported_at", { mode: 'string' }).notNull().default(sql`now()`),
   reconciledAt: timestamp("reconciled_at", { mode: 'string' }),
+  reconciledBy: text("reconciled_by"),
   reasonToOverride: text("reason_to_override"),
 });
 
@@ -41,17 +42,20 @@ export const orders = pgTable("orders", {
   batchId: integer("batch_id"),
   fetchedAt: timestamp("fetched_at", { mode: 'string' }).notNull().default(sql`now()`),
   reconciledAt: timestamp("reconciled_at", { mode: 'string' }),
+  reconciledBy: text("reconciled_by"),
   transactionIds: text("transaction_ids").array(),
 });
 
 export const insertBankTransactionSchema = createInsertSchema(bankTransactions).omit({
   importedAt: true,
   reconciledAt: true,
+  reconciledBy: true,
 });
 
 export const insertOrderSchema = createInsertSchema(orders).omit({
   fetchedAt: true,
   reconciledAt: true,
+  reconciledBy: true,
 });
 
 export type InsertBankTransaction = z.infer<typeof insertBankTransactionSchema>;
