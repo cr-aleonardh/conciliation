@@ -270,14 +270,15 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/reconcile", async (req, res) => {
+  app.post("/api/reconcile", requireAuth, async (req, res) => {
     try {
       const schema = z.object({
         transactionHashes: z.array(z.string()),
         orderIds: z.array(z.number())
       });
       const { transactionHashes, orderIds } = schema.parse(req.body);
-      await storage.reconcileMatches(transactionHashes, orderIds);
+      const reconciledBy = req.session?.username || 'unknown';
+      await storage.reconcileMatches(transactionHashes, orderIds, reconciledBy);
       res.json({ message: "Reconciliation completed successfully" });
     } catch (error: any) {
       if (error instanceof z.ZodError) {
@@ -287,7 +288,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/reconcile-batch", async (req, res) => {
+  app.post("/api/reconcile-batch", requireAuth, async (req, res) => {
     try {
       const schema = z.object({
         matches: z.array(z.object({
@@ -296,7 +297,8 @@ export async function registerRoutes(
         }))
       });
       const { matches } = schema.parse(req.body);
-      const result = await storage.reconcileBatch(matches);
+      const reconciledBy = req.session?.username || 'unknown';
+      const result = await storage.reconcileBatch(matches, reconciledBy);
       res.json({ 
         success: true, 
         message: `Reconciliation completed with batch ID ${result.batchId}`,
