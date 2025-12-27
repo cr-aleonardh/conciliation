@@ -1408,7 +1408,7 @@ export default function ReconciliationPage({ isAdmin = false }: ReconciliationPa
   }, [remittances, bankTransactions]);
 
   return (
-    <div className="h-screen w-full bg-background text-foreground flex flex-col overflow-hidden font-sans">
+    <div className="h-screen w-full bg-background text-foreground flex flex-col overflow-x-auto overflow-y-hidden font-sans min-w-[900px]">
       
       {/* Header / Stats Bar */}
       <header className="h-16 border-b bg-card/50 backdrop-blur-sm flex items-center justify-between px-6 shrink-0 z-20">

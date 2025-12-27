@@ -75,10 +75,12 @@
 }
 
 /* Force Dark Mode visuals even if system is light, as requested for "Cockpit" feel */
-body {
+html, body {
   background-color: hsl(var(--background));
   color: hsl(var(--foreground));
   font-family: var(--font-sans);
+  overflow-x: auto;
+  min-width: 900px;
 }
 
 /* Custom Scrollbars for dense data */
