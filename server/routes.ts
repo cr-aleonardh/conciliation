@@ -547,9 +547,14 @@ export async function registerRoutes(
           }
           
           // Filter orders by status if statusFilter is provided (P = Paid, H = Holding, D = Dispatch)
-          // If cleanOldOrders is true, don't filter - fetch all to update canceled orders
+          // If cleanOldOrders is true, only process orders with status 'H' (Holding) - skip paid orders
           let ordersToProcess = pythonResult.orders;
-          if (statusFilter && !cleanOldOrders) {
+          if (cleanOldOrders) {
+            // For clean old orders, only get Holding orders to check if they became Canceled
+            const beforeCount = ordersToProcess.length;
+            ordersToProcess = ordersToProcess.filter((order: any) => order.status === 'H' || order.status === 'C');
+            console.log(`Clean old orders filter (H or C only): ${beforeCount} -> ${ordersToProcess.length} orders`);
+          } else if (statusFilter) {
             const beforeCount = ordersToProcess.length;
             ordersToProcess = ordersToProcess.filter((order: any) => order.status === statusFilter);
             console.log(`Status filter "${statusFilter}": ${beforeCount} -> ${ordersToProcess.length} orders`);
