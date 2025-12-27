@@ -7,7 +7,7 @@ import {
   orders
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, inArray, or, ilike, sql } from "drizzle-orm";
+import { eq, and, inArray, or, ilike, sql, ne, not } from "drizzle-orm";
 
 export interface IStorage {
   // Bank Transactions
@@ -75,7 +75,19 @@ export class DatabaseStorage implements IStorage {
 
   // Orders
   async getOrders(): Promise<Order[]> {
-    return await db.select().from(orders);
+    // Filter out canceled orders that are not reconciled
+    // Hide orders where remitec_status = 'C' AND reconciliationStatus = 'unmatched'
+    // Include orders where remitecStatus is null (not canceled) or not 'C', or already reconciled
+    return await db
+      .select()
+      .from(orders)
+      .where(
+        or(
+          sql`${orders.remitecStatus} IS NULL`,
+          ne(orders.remitecStatus, 'C'),
+          ne(orders.reconciliationStatus, 'unmatched')
+        )
+      );
   }
 
   async getOrderById(id: number): Promise<Order | undefined> {
