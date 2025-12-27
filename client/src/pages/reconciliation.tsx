@@ -27,6 +27,7 @@ export interface Remittance {
   reconciliationStatus?: string;
   matchedBankIds?: string[];
   suggestedMatchId?: string;
+  remitecStatus?: string;
 }
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -499,6 +500,16 @@ const RemittanceRow = ({
              {data.reference}
            </Badge>
            <span className={cn("text-xs font-mono", isMatched ? "text-muted-foreground/40" : "text-muted-foreground/70")}>{data.orderNumber}</span>
+           {data.remitecStatus && (
+             <Badge variant="outline" className={cn("text-[10px] h-4 px-1 font-mono", 
+               data.remitecStatus === 'C' ? "border-red-500 text-red-500" :
+               data.remitecStatus === 'P' ? "border-green-500 text-green-500" :
+               data.remitecStatus === 'H' ? "border-yellow-500 text-yellow-500" :
+               "border-muted-foreground text-muted-foreground"
+             )}>
+               {data.remitecStatus}
+             </Badge>
+           )}
            {matchStats && <MatchStatsDisplay stats={matchStats} />}
         </div>
 
@@ -598,6 +609,7 @@ export default function ReconciliationPage({ isAdmin = false }: ReconciliationPa
   const [fetchAllStartDate, setFetchAllStartDate] = useState<Date | undefined>(undefined);
   const [fetchAllEndDate, setFetchAllEndDate] = useState<Date | undefined>(new Date());
   const [fetchAllStatus, setFetchAllStatus] = useState<"P" | "H" | "D">("P");
+  const [cleanOldOrders, setCleanOldOrders] = useState(false);
 
 
   useEffect(() => {
@@ -650,7 +662,8 @@ export default function ReconciliationPage({ isAdmin = false }: ReconciliationPa
             status: o.reconciliationStatus === 'unmatched' ? 'unmatched' : 
                    o.reconciliationStatus === 'suggested_match' ? 'suggested' : 'matched',
             reconciliationStatus: o.reconciliationStatus,
-            matchedBankIds: o.transactionIds || undefined
+            matchedBankIds: o.transactionIds || undefined,
+            remitecStatus: o.remitecStatus || undefined
           }));
           setRemittances(transformedRemittances);
         }
@@ -676,7 +689,7 @@ export default function ReconciliationPage({ isAdmin = false }: ReconciliationPa
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const handleFetchAllOrders = async (startDate?: Date, endDate?: Date, status?: "P" | "H" | "D") => {
+  const handleFetchAllOrders = async (startDate?: Date, endDate?: Date, status?: "P" | "H" | "D", cleanOld?: boolean) => {
     if (isFetchingAllOrders) return;
     
     setIsFetchingAllOrders(true);
@@ -684,10 +697,11 @@ export default function ReconciliationPage({ isAdmin = false }: ReconciliationPa
     setShowFetchAllModal(false);
     
     try {
-      const body: { startDate?: string; endDate?: string; statusFilter?: string } = {};
+      const body: { startDate?: string; endDate?: string; statusFilter?: string; cleanOldOrders?: boolean } = {};
       if (startDate) body.startDate = format(startDate, 'yyyy-MM-dd');
       if (endDate) body.endDate = format(endDate, 'yyyy-MM-dd');
-      if (status) body.statusFilter = status;
+      if (!cleanOld && status) body.statusFilter = status;
+      if (cleanOld) body.cleanOldOrders = true;
       
       const response = await fetch('/api/fetch-orders-all', {
         method: 'POST',
@@ -699,7 +713,7 @@ export default function ReconciliationPage({ isAdmin = false }: ReconciliationPa
       
       if (result.success) {
         toast({
-          title: "All orders fetched",
+          title: cleanOld ? "Orders cleaned" : "All orders fetched",
           description: `Inserted: ${result.inserted}, Updated: ${result.updated}`,
         });
         // Refresh orders after successful fetch
@@ -716,7 +730,8 @@ export default function ReconciliationPage({ isAdmin = false }: ReconciliationPa
             status: o.reconciliationStatus === 'unmatched' ? 'unmatched' : 
                    o.reconciliationStatus === 'suggested_match' ? 'suggested' : 'matched',
             reconciliationStatus: o.reconciliationStatus,
-            matchedBankIds: o.transactionIds || undefined
+            matchedBankIds: o.transactionIds || undefined,
+            remitecStatus: o.remitecStatus || undefined
           }));
           setRemittances(transformedRemittances);
         }
@@ -787,7 +802,8 @@ export default function ReconciliationPage({ isAdmin = false }: ReconciliationPa
                    o.reconciliationStatus === 'suggested_match' ? 'suggested' : 'matched',
             reconciliationStatus: o.reconciliationStatus,
             matchedBankIds: o.transactionIds || undefined,
-            suggestedMatchId: o.transactionIds?.[0] || undefined
+            suggestedMatchId: o.transactionIds?.[0] || undefined,
+            remitecStatus: o.remitecStatus || undefined
           }));
           setRemittances(transformedRemittances);
         }
@@ -953,7 +969,8 @@ export default function ReconciliationPage({ isAdmin = false }: ReconciliationPa
             status: o.reconciliationStatus === 'unmatched' ? 'unmatched' : 
                    o.reconciliationStatus === 'suggested_match' ? 'suggested' : 'matched',
             reconciliationStatus: o.reconciliationStatus,
-            matchedBankIds: o.transactionIds || undefined
+            matchedBankIds: o.transactionIds || undefined,
+            remitecStatus: o.remitecStatus || undefined
           }));
           setRemittances(transformedRemittances);
         }
@@ -2125,29 +2142,41 @@ export default function ReconciliationPage({ isAdmin = false }: ReconciliationPa
                 </PopoverContent>
               </Popover>
             </div>
-            <div className="grid gap-2">
-              <Label htmlFor="status">Status Filter</Label>
-              <Select value={fetchAllStatus} onValueChange={(value: "P" | "H" | "D") => setFetchAllStatus(value)}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="P">Paid</SelectItem>
-                  <SelectItem value="H">Holding</SelectItem>
-                  {isAdmin && <SelectItem value="D">Dispatch</SelectItem>}
-                </SelectContent>
-              </Select>
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="cleanOldOrders"
+                checked={cleanOldOrders}
+                onCheckedChange={setCleanOldOrders}
+              />
+              <Label htmlFor="cleanOldOrders" className="text-sm font-medium cursor-pointer">
+                Clean Old Orders
+              </Label>
             </div>
+            {!cleanOldOrders && (
+              <div className="grid gap-2">
+                <Label htmlFor="status">Status Filter</Label>
+                <Select value={fetchAllStatus} onValueChange={(value: "P" | "H" | "D") => setFetchAllStatus(value)}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="P">Paid</SelectItem>
+                    <SelectItem value="H">Holding</SelectItem>
+                    {isAdmin && <SelectItem value="D">Dispatch</SelectItem>}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowFetchAllModal(false)}>
               Cancel
             </Button>
             <Button 
-              onClick={() => handleFetchAllOrders(fetchAllStartDate, fetchAllEndDate, fetchAllStatus)}
+              onClick={() => handleFetchAllOrders(fetchAllStartDate, fetchAllEndDate, fetchAllStatus, cleanOldOrders)}
               disabled={!fetchAllStartDate}
             >
-              Fetch Orders
+              {cleanOldOrders ? "Clean Orders" : "Fetch Orders"}
             </Button>
           </DialogFooter>
         </DialogContent>
