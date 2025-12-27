@@ -20,6 +20,7 @@ export interface IStorage {
 
   // Orders
   getOrders(): Promise<Order[]>;
+  getHiddenOrdersCount(): Promise<number>;
   getOrderById(id: number): Promise<Order | undefined>;
   getExistingOrderIds(orderIds: number[]): Promise<number[]>;
   createOrder(order: InsertOrder): Promise<Order>;
@@ -88,6 +89,20 @@ export class DatabaseStorage implements IStorage {
           ne(orders.reconciliationStatus, 'unmatched')
         )
       );
+  }
+
+  async getHiddenOrdersCount(): Promise<number> {
+    // Count orders where remitec_status = 'C' AND reconciliationStatus = 'unmatched'
+    const result = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(orders)
+      .where(
+        and(
+          eq(orders.remitecStatus, 'C'),
+          eq(orders.reconciliationStatus, 'unmatched')
+        )
+      );
+    return Number(result[0]?.count || 0);
   }
 
   async getOrderById(id: number): Promise<Order | undefined> {

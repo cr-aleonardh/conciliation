@@ -142,8 +142,11 @@ export async function registerRoutes(
   // Orders Routes
   app.get("/api/orders", async (req, res) => {
     try {
-      const orders = await storage.getOrders();
-      res.json(orders);
+      const [orders, hiddenCount] = await Promise.all([
+        storage.getOrders(),
+        storage.getHiddenOrdersCount()
+      ]);
+      res.json({ orders, hiddenCount });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }

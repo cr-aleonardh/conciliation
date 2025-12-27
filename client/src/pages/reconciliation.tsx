@@ -651,7 +651,7 @@ export default function ReconciliationPage({ isAdmin = false }: ReconciliationPa
         // Refresh orders after successful fetch
         const ordersResponse = await fetch('/api/orders');
         if (ordersResponse.ok) {
-          const orders = await ordersResponse.json();
+          const { orders, hiddenCount } = await ordersResponse.json();
           const transformedRemittances: Remittance[] = orders.map((o: any) => ({
             id: String(o.orderId),
             date: o.orderDate?.split(' ')[0] || '',
@@ -666,6 +666,12 @@ export default function ReconciliationPage({ isAdmin = false }: ReconciliationPa
             remitecStatus: o.remitecStatus || undefined
           }));
           setRemittances(transformedRemittances);
+          if (hiddenCount > 0) {
+            toast({
+              title: "Some orders hidden",
+              description: `${hiddenCount} canceled unreconciled order${hiddenCount === 1 ? '' : 's'} hidden from view`,
+            });
+          }
         }
       } else {
         setFetchStatus({
@@ -712,14 +718,10 @@ export default function ReconciliationPage({ isAdmin = false }: ReconciliationPa
       const result = await response.json();
       
       if (result.success) {
-        toast({
-          title: cleanOld ? "Orders cleaned" : "All orders fetched",
-          description: `Inserted: ${result.inserted}, Updated: ${result.updated}`,
-        });
         // Refresh orders after successful fetch
         const ordersResponse = await fetch('/api/orders');
         if (ordersResponse.ok) {
-          const orders = await ordersResponse.json();
+          const { orders, hiddenCount } = await ordersResponse.json();
           const transformedRemittances: Remittance[] = orders.map((o: any) => ({
             id: String(o.orderId),
             date: o.orderDate?.split(' ')[0] || '',
@@ -734,6 +736,11 @@ export default function ReconciliationPage({ isAdmin = false }: ReconciliationPa
             remitecStatus: o.remitecStatus || undefined
           }));
           setRemittances(transformedRemittances);
+          const hiddenMsg = hiddenCount > 0 ? ` (${hiddenCount} canceled orders hidden)` : '';
+          toast({
+            title: cleanOld ? "Orders cleaned" : "All orders fetched",
+            description: `Inserted: ${result.inserted}, Updated: ${result.updated}${hiddenMsg}`,
+          });
         }
       } else {
         toast({
@@ -790,7 +797,7 @@ export default function ReconciliationPage({ isAdmin = false }: ReconciliationPa
         }
         
         if (ordersResponse.ok) {
-          const orders = await ordersResponse.json();
+          const { orders } = await ordersResponse.json();
           const transformedRemittances: Remittance[] = orders.map((o: any) => ({
             id: String(o.orderId),
             date: o.orderDate?.split(' ')[0] || '',
@@ -958,7 +965,7 @@ export default function ReconciliationPage({ isAdmin = false }: ReconciliationPa
         }
         
         if (ordersResponse.ok) {
-          const orders = await ordersResponse.json();
+          const { orders } = await ordersResponse.json();
           const transformedRemittances: Remittance[] = orders.map((o: any) => ({
             id: String(o.orderId),
             date: o.orderDate?.split(' ')[0] || '',
