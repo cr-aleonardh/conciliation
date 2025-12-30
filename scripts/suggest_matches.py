@@ -129,8 +129,6 @@ def run_suggestions():
                 if not amount_match or not date_match:
                     continue
                 
-                bank_has_reference = bank['extracted_reference'] and bank['extracted_reference'].strip()
-                
                 ref_match = check_reference_match(
                     bank['extracted_reference'],
                     order['order_bank_reference']
@@ -140,10 +138,6 @@ def run_suggestions():
                     bank['payer_sender'],
                     order['customer_name']
                 )
-                
-                # If bank transaction has a reference, ONLY match if reference matches exactly
-                if bank_has_reference and not ref_match:
-                    continue
                 
                 if ref_match:
                     cur.execute("""
