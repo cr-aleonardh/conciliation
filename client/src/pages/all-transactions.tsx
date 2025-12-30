@@ -462,6 +462,7 @@ export default function AllTransactionsPage({ isViewer = false, isAdmin = false 
                       </TableHead>
                       <TableHead className="text-slate-400">Status</TableHead>
                       <TableHead className="text-slate-400">Order ID</TableHead>
+                      <TableHead className="text-slate-400">Remitec</TableHead>
                       <TableHead className="text-slate-400 text-right">Order Amount</TableHead>
                       <TableHead className="text-slate-400">Reconciled At</TableHead>
                       {isAdmin && <TableHead className="text-slate-400">Actions</TableHead>}
@@ -507,6 +508,29 @@ export default function AllTransactionsPage({ isViewer = false, isAdmin = false 
                         </TableCell>
                         <TableCell className="text-slate-400" data-testid={`text-orderid-${transaction.transactionHash}`}>
                           {transaction.orderId || "-"}
+                        </TableCell>
+                        <TableCell data-testid={`text-remitec-${transaction.transactionHash}`}>
+                          {transaction.orderId && ordersMap.get(transaction.orderId) ? (
+                            <Badge 
+                              variant="secondary" 
+                              className={
+                                ordersMap.get(transaction.orderId)!.remitecStatus === 'P' 
+                                  ? "bg-green-900/50 text-green-400 border border-green-700"
+                                  : ordersMap.get(transaction.orderId)!.remitecStatus === 'H'
+                                  ? "bg-blue-900/50 text-blue-400 border border-blue-700"
+                                  : ordersMap.get(transaction.orderId)!.remitecStatus === 'C'
+                                  ? "bg-red-900/50 text-red-400 border border-red-700"
+                                  : "bg-slate-700 text-slate-300"
+                              }
+                            >
+                              {ordersMap.get(transaction.orderId)!.remitecStatus === 'P' ? 'Paid'
+                                : ordersMap.get(transaction.orderId)!.remitecStatus === 'H' ? 'Holding'
+                                : ordersMap.get(transaction.orderId)!.remitecStatus === 'C' ? 'Canceled'
+                                : ordersMap.get(transaction.orderId)!.remitecStatus || '-'}
+                            </Badge>
+                          ) : (
+                            <span className="text-slate-600">-</span>
+                          )}
                         </TableCell>
                         <TableCell className="text-right" data-testid={`text-orderamount-${transaction.transactionHash}`}>
                           {transaction.orderId && ordersMap.get(transaction.orderId) ? (
