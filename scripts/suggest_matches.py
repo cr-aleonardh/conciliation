@@ -129,10 +129,16 @@ def run_suggestions():
                 if not amount_match or not date_match:
                     continue
                 
+                bank_has_reference = bank['extracted_reference'] and bank['extracted_reference'].strip()
                 ref_match = check_reference_match(
                     bank['extracted_reference'],
                     order['order_bank_reference']
                 )
+                
+                # If bank transaction has a reference, it MUST match the order's reference exactly
+                # This is a non-negotiable rule - skip this order if references don't match
+                if bank_has_reference and not ref_match:
+                    continue
                 
                 name_score = check_name_match(
                     bank['payer_sender'],
