@@ -35,7 +35,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { useToast } from "@/hooks/use-toast";
 import type { BankTransaction, Order } from "@shared/schema";
 
-type SortField = "transactionDate" | "payerSender" | "extractedReference" | "creditAmount";
+type SortField = "transactionDate" | "payerSender" | "extractedReference" | "creditAmount" | "reconciliationStatus" | "orderId" | "remitecStatus" | "orderAmount" | "reconciledAt";
 type SortDirection = "asc" | "desc";
 type StatusFilter = "all" | "reconciled" | "unmatched";
 
@@ -159,6 +159,26 @@ export default function AllTransactionsPage({ isViewer = false, isAdmin = false 
           aVal = parseFloat(a.creditAmount) || 0;
           bVal = parseFloat(b.creditAmount) || 0;
           break;
+        case "reconciliationStatus":
+          aVal = a.reconciliationStatus || "";
+          bVal = b.reconciliationStatus || "";
+          break;
+        case "orderId":
+          aVal = a.orderId || 0;
+          bVal = b.orderId || 0;
+          break;
+        case "remitecStatus":
+          aVal = a.orderId ? (ordersMap.get(a.orderId)?.remitecStatus || "") : "";
+          bVal = b.orderId ? (ordersMap.get(b.orderId)?.remitecStatus || "") : "";
+          break;
+        case "orderAmount":
+          aVal = a.orderId ? parseFloat(ordersMap.get(a.orderId)?.amountTotalFee || "0") : 0;
+          bVal = b.orderId ? parseFloat(ordersMap.get(b.orderId)?.amountTotalFee || "0") : 0;
+          break;
+        case "reconciledAt":
+          aVal = a.reconciledAt ? new Date(a.reconciledAt).getTime() : 0;
+          bVal = b.reconciledAt ? new Date(b.reconciledAt).getTime() : 0;
+          break;
       }
       
       if (aVal < bVal) return sortDirection === "asc" ? -1 : 1;
@@ -167,7 +187,7 @@ export default function AllTransactionsPage({ isViewer = false, isAdmin = false 
     });
 
     return result;
-  }, [transactions, statusFilter, searchQuery, sortField, sortDirection, dateFrom, dateTo]);
+  }, [transactions, statusFilter, searchQuery, sortField, sortDirection, dateFrom, dateTo, ordersMap]);
 
   const reconciledCount = transactions.filter(t => t.reconciliationStatus === "reconciled").length;
   const unreconciledCount = transactions.filter(t => t.reconciliationStatus !== "reconciled").length;
@@ -460,11 +480,56 @@ export default function AllTransactionsPage({ isViewer = false, isAdmin = false 
                           <SortIcon field="creditAmount" />
                         </div>
                       </TableHead>
-                      <TableHead className="text-slate-400">Status</TableHead>
-                      <TableHead className="text-slate-400">Order ID</TableHead>
-                      <TableHead className="text-slate-400">Remitec</TableHead>
-                      <TableHead className="text-slate-400 text-right">Order Amount</TableHead>
-                      <TableHead className="text-slate-400">Reconciled At</TableHead>
+                      <TableHead 
+                        className="text-slate-400 cursor-pointer select-none"
+                        onClick={() => handleSort("reconciliationStatus")}
+                        data-testid="header-status"
+                      >
+                        <div className="flex items-center">
+                          Status
+                          <SortIcon field="reconciliationStatus" />
+                        </div>
+                      </TableHead>
+                      <TableHead 
+                        className="text-slate-400 cursor-pointer select-none"
+                        onClick={() => handleSort("orderId")}
+                        data-testid="header-orderid"
+                      >
+                        <div className="flex items-center">
+                          Order ID
+                          <SortIcon field="orderId" />
+                        </div>
+                      </TableHead>
+                      <TableHead 
+                        className="text-slate-400 cursor-pointer select-none"
+                        onClick={() => handleSort("remitecStatus")}
+                        data-testid="header-remitec"
+                      >
+                        <div className="flex items-center">
+                          Remitec
+                          <SortIcon field="remitecStatus" />
+                        </div>
+                      </TableHead>
+                      <TableHead 
+                        className="text-slate-400 cursor-pointer select-none text-right"
+                        onClick={() => handleSort("orderAmount")}
+                        data-testid="header-orderamount"
+                      >
+                        <div className="flex items-center justify-end">
+                          Order Amount
+                          <SortIcon field="orderAmount" />
+                        </div>
+                      </TableHead>
+                      <TableHead 
+                        className="text-slate-400 cursor-pointer select-none"
+                        onClick={() => handleSort("reconciledAt")}
+                        data-testid="header-reconciledat"
+                      >
+                        <div className="flex items-center">
+                          Reconciled At
+                          <SortIcon field="reconciledAt" />
+                        </div>
+                      </TableHead>
                       {isAdmin && <TableHead className="text-slate-400">Actions</TableHead>}
                     </TableRow>
                   </TableHeader>
