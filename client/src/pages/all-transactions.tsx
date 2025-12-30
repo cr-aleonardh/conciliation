@@ -566,9 +566,15 @@ export default function AllTransactionsPage({ isViewer = false, isAdmin = false 
                             variant="secondary" 
                             className={transaction.reconciliationStatus === "reconciled" 
                               ? "bg-green-900/50 text-green-400 border border-green-700" 
+                              : transaction.reconciliationStatus === "suggested_match"
+                              ? "bg-cyan-900/50 text-cyan-400 border border-cyan-700"
                               : "bg-amber-900/50 text-amber-400 border border-amber-700"}
                           >
-                            {transaction.reconciliationStatus === "reconciled" ? "Reconciled" : "Unreconciled"}
+                            {transaction.reconciliationStatus === "reconciled" 
+                              ? "Reconciled" 
+                              : transaction.reconciliationStatus === "suggested_match"
+                              ? "Suggested"
+                              : "Unreconciled"}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-slate-400" data-testid={`text-orderid-${transaction.transactionHash}`}>
