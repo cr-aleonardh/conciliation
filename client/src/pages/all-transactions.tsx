@@ -63,7 +63,7 @@ export default function AllTransactionsPage({ isViewer = false, isAdmin = false 
     },
   });
 
-  const { data: orders = [] } = useQuery<Order[]>({
+  const { data: ordersData } = useQuery<{ orders: Order[], hiddenCount: number }>({
     queryKey: ["/api/orders"],
     queryFn: async () => {
       const response = await fetch("/api/orders");
@@ -71,6 +71,8 @@ export default function AllTransactionsPage({ isViewer = false, isAdmin = false 
       return response.json();
     },
   });
+
+  const orders = ordersData?.orders || [];
 
   const ordersMap = useMemo(() => {
     const map = new Map<number, Order>();
