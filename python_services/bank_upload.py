@@ -293,6 +293,7 @@ def process_bank_file(file):
             payer_sender = normalize_payer_sender(row.get(payer_col))
             description = normalize_description(row.get(desc_col))
             extracted_reference = extract_reference(row.get(desc_col))
+            raw_description = str(row.get(desc_col)) if pd.notna(row.get(desc_col)) else None
             
             transaction = {
                 'transaction_hash': transaction_hash,
@@ -301,6 +302,7 @@ def process_bank_file(file):
                 'transaction_date': transaction_date,
                 'credit_amount': credit_amount,
                 'description': description,
+                'raw_description': raw_description,
                 'extracted_reference': extracted_reference,
                 'match_reference_flag': False,
                 'match_name_score': 0.0,
@@ -331,10 +333,11 @@ def insert_transactions(transactions):
                 cursor.execute("""
                     INSERT INTO bank_transactions 
                     (transaction_hash, old_hash, payer_sender, transaction_date, credit_amount, 
-                     description, extracted_reference, match_reference_flag, 
+                     description, raw_description, extracted_reference, match_reference_flag, 
                      match_name_score, reconciliation_status, imported_at)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
-                    ON CONFLICT (transaction_hash) DO NOTHING
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
+                    ON CONFLICT (transaction_hash) DO UPDATE SET
+                        raw_description = EXCLUDED.raw_description
                 """, (
                     txn['transaction_hash'],
                     txn['old_hash'],
@@ -342,6 +345,7 @@ def insert_transactions(transactions):
                     txn['transaction_date'],
                     txn['credit_amount'],
                     txn['description'],
+                    txn['raw_description'],
                     txn['extracted_reference'],
                     txn['match_reference_flag'],
                     txn['match_name_score'],

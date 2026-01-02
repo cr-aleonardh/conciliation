@@ -10,6 +10,7 @@ export const bankTransactions = pgTable("bank_transactions", {
   transactionDate: timestamp("transaction_date", { mode: 'string' }).notNull(),
   creditAmount: numeric("credit_amount", { precision: 12, scale: 2 }).notNull(),
   description: text("description").notNull(),
+  rawDescription: text("raw_description"),
   extractedReference: text("extracted_reference"),
   matchReferenceFlag: boolean("match_reference_flag").notNull().default(false),
   matchNameScore: numeric("match_name_score", { precision: 5, scale: 2 }).notNull().default('0'),
