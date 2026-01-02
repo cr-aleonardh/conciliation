@@ -149,7 +149,15 @@ export class DatabaseStorage implements IStorage {
     if (ordersList.length === 0) return { inserted: 0, updated: 0 };
     
     const orderIds = ordersList.map(o => o.orderId);
-    const existingIds = new Set(await this.getExistingOrderIds(orderIds));
+    
+    // Get existing orders with their current status to detect H -> C transitions
+    const existingOrders = orderIds.length > 0 ? await db
+      .select({ orderId: orders.orderId, remitecStatus: orders.remitecStatus, reconciliationStatus: orders.reconciliationStatus })
+      .from(orders)
+      .where(inArray(orders.orderId, orderIds)) : [];
+    
+    const existingOrdersMap = new Map(existingOrders.map(o => [o.orderId, o]));
+    const existingIds = new Set(existingOrders.map(o => o.orderId));
     
     const toInsert = ordersList.filter(o => !existingIds.has(o.orderId));
     const toUpdate = ordersList.filter(o => existingIds.has(o.orderId));
@@ -158,7 +166,20 @@ export class DatabaseStorage implements IStorage {
       await db.insert(orders).values(toInsert);
     }
     
+    // Track orders that transition from H to C with 'suggested' status
+    const ordersToCleanup: number[] = [];
+    
     for (const order of toUpdate) {
+      const existing = existingOrdersMap.get(order.orderId);
+      
+      // Detect H -> C transition for orders with 'suggested' status
+      if (existing && 
+          existing.remitecStatus === 'H' && 
+          order.remitecStatus === 'C' && 
+          existing.reconciliationStatus === 'suggested') {
+        ordersToCleanup.push(order.orderId);
+      }
+      
       await db
         .update(orders)
         .set({
@@ -172,6 +193,34 @@ export class DatabaseStorage implements IStorage {
           remitecStatus: order.remitecStatus,
         })
         .where(eq(orders.orderId, order.orderId));
+    }
+    
+    // Cleanup suggested matches for orders that changed from H to C
+    if (ordersToCleanup.length > 0) {
+      console.log(`Cleaning up ${ordersToCleanup.length} orders that changed from H to C with suggested status:`, ordersToCleanup);
+      
+      // Unlink transactions that were linked to these orders with 'suggested' status
+      await db
+        .update(bankTransactions)
+        .set({ 
+          orderId: null, 
+          reconciliationStatus: 'unmatched'
+        })
+        .where(
+          and(
+            inArray(bankTransactions.orderId, ordersToCleanup),
+            eq(bankTransactions.reconciliationStatus, 'suggested')
+          )
+        );
+      
+      // Reset orders: clear transactionIds and set reconciliationStatus to 'unmatched'
+      await db
+        .update(orders)
+        .set({ 
+          transactionIds: null, 
+          reconciliationStatus: 'unmatched'
+        })
+        .where(inArray(orders.orderId, ordersToCleanup));
     }
     
     return { inserted: toInsert.length, updated: toUpdate.length };
