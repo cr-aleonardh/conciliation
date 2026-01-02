@@ -152,6 +152,15 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/orders/paid", async (req, res) => {
+    try {
+      const paidOrders = await storage.getPaidOrders();
+      res.json({ orders: paidOrders });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   app.get("/api/orders/:id", async (req, res) => {
     try {
       const order = await storage.getOrderById(parseInt(req.params.id));
