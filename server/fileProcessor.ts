@@ -277,11 +277,12 @@ export async function processUploadedFile(buffer: Buffer, filename: string): Pro
       
       const hash = generateHash(row, headers);
       const oldHash = generateOldHash(row, headers);
-      const rawDescription = descCol ? String(row[descCol] || '').toUpperCase() : '';
+      const rawDescriptionUpper = descCol ? String(row[descCol] || '').toUpperCase() : '';
       const rawPayerName = payerCol ? String(row[payerCol] || '').toUpperCase() : '';
-      const reference = extractReference(rawDescription) || extractReference(rawPayerName);
+      const reference = extractReference(rawDescriptionUpper) || extractReference(rawPayerName);
       const payerName = payerCol ? normalizeText(row[payerCol]) : '';
       const description = descCol ? normalizeText(row[descCol]) : '';
+      const rawDescription = descCol ? String(row[descCol] || '') : null;
       
       transactions.push({
         transactionHash: hash,
@@ -289,6 +290,7 @@ export async function processUploadedFile(buffer: Buffer, filename: string): Pro
         transactionDate: parseDate(row[dateCol]),
         payerSender: payerName,
         description: description,
+        rawDescription: rawDescription,
         creditAmount: credits.toString(),
         reconciliationStatus: 'unmatched',
         orderId: null,
@@ -305,12 +307,17 @@ export async function processUploadedFile(buffer: Buffer, filename: string): Pro
     }
     
     let duplicates = 0;
+    let updated = 0;
     const insertedTransactions: InsertBankTransaction[] = [];
     
     for (const tx of transactions) {
       const existing = await storage.getBankTransactionByHash(tx.transactionHash);
       if (existing) {
         duplicates++;
+        if (tx.rawDescription && tx.rawDescription !== existing.rawDescription) {
+          await storage.updateBankTransaction(tx.transactionHash, { rawDescription: tx.rawDescription });
+          updated++;
+        }
       } else {
         insertedTransactions.push(tx);
       }
@@ -320,9 +327,10 @@ export async function processUploadedFile(buffer: Buffer, filename: string): Pro
       await storage.createBankTransactions(insertedTransactions);
     }
     
+    const updatedMsg = updated > 0 ? `, updated ${updated} existing records` : '';
     return {
       success: true,
-      message: `Successfully processed ${insertedTransactions.length} transactions`,
+      message: `Successfully processed ${insertedTransactions.length} transactions${updatedMsg}`,
       processed: insertedTransactions.length,
       skipped,
       duplicates
