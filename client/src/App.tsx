@@ -12,6 +12,8 @@ import AllTransactionsPage from "@/pages/all-transactions";
 import UnreconciledTransactionsPage from "@/pages/unreconciled-transactions";
 import BatchesPage from "@/pages/batches";
 import LoginPage from "@/pages/login";
+import LandingPage from "@/pages/landing";
+import PaidOrdersReconciliationPage from "@/pages/paid-orders-reconciliation";
 import Layout from "@/components/Layout";
 
 function AppContent({ isAdmin, isViewer, onLogout }: { isAdmin: boolean; isViewer: boolean; onLogout: () => void }) {
@@ -63,12 +65,14 @@ function AppContent({ isAdmin, isViewer, onLogout }: { isAdmin: boolean; isViewe
       onLogout={handleLogout}
     >
       <Switch>
-        <Route path="/" component={DashboardPage} />
+        <Route path="/" component={() => <LandingPage isAdmin={isAdmin} />} />
+        <Route path="/dashboard" component={DashboardPage} />
         <Route path="/reconciliation" component={() => <ReconciliationPage isAdmin={isAdmin} />} />
         <Route path="/reconciled" component={ReconciledPage} />
         <Route path="/all-transactions" component={() => <AllTransactionsPage isAdmin={isAdmin} />} />
         <Route path="/batches" component={BatchesPage} />
         {isAdmin && <Route path="/manage-unreconciled" component={UnreconciledTransactionsPage} />}
+        {isAdmin && <Route path="/paid-orders-reconciliation" component={() => <PaidOrdersReconciliationPage isAdmin={isAdmin} />} />}
         <Route component={NotFound} />
       </Switch>
     </Layout>

@@ -8,6 +8,8 @@ import {
   List, 
   Package,
   AlertCircle,
+  CreditCard,
+  Home,
   ChevronLeft,
   ChevronRight,
   LogOut
@@ -42,6 +44,12 @@ export default function Sidebar({ isAdmin, isViewer = false, unreconciledCount =
   const navItems: NavItem[] = [
     { 
       path: "/", 
+      label: "Home", 
+      icon: <Home className="w-5 h-5" />,
+      viewerHidden: true
+    },
+    { 
+      path: "/dashboard", 
       label: "Dashboard", 
       icon: <LayoutDashboard className="w-5 h-5" />,
       viewerHidden: true
@@ -53,6 +61,12 @@ export default function Sidebar({ isAdmin, isViewer = false, unreconciledCount =
       badge: suggestedCount,
       badgeColor: "bg-cyan-600",
       viewerHidden: true
+    },
+    { 
+      path: "/paid-orders-reconciliation", 
+      label: "Paid Orders", 
+      icon: <CreditCard className="w-5 h-5" />,
+      adminOnly: true
     },
     { 
       path: "/reconciled", 
