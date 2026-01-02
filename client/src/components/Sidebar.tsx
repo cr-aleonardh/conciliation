@@ -4,7 +4,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import { 
   LayoutDashboard, 
   GitCompare, 
-  CheckCircle, 
   List, 
   Package,
   AlertCircle,
@@ -67,12 +66,6 @@ export default function Sidebar({ isAdmin, isViewer = false, unreconciledCount =
       label: "Paid Orders", 
       icon: <CreditCard className="w-5 h-5" />,
       adminOnly: true
-    },
-    { 
-      path: "/reconciled", 
-      label: "Reconciled", 
-      icon: <CheckCircle className="w-5 h-5" />,
-      viewerHidden: true
     },
     { 
       path: "/all-transactions", 

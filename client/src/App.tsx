@@ -7,7 +7,6 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
 import DashboardPage from "@/pages/dashboard";
 import ReconciliationPage from "@/pages/reconciliation";
-import ReconciledPage from "@/pages/reconciled";
 import AllTransactionsPage from "@/pages/all-transactions";
 import UnreconciledTransactionsPage from "@/pages/unreconciled-transactions";
 import BatchesPage from "@/pages/batches";
@@ -68,7 +67,6 @@ function AppContent({ isAdmin, isViewer, onLogout }: { isAdmin: boolean; isViewe
         <Route path="/" component={() => <LandingPage isAdmin={isAdmin} />} />
         <Route path="/dashboard" component={DashboardPage} />
         <Route path="/reconciliation" component={() => <ReconciliationPage isAdmin={isAdmin} />} />
-        <Route path="/reconciled" component={ReconciledPage} />
         <Route path="/all-transactions" component={() => <AllTransactionsPage isAdmin={isAdmin} />} />
         <Route path="/batches" component={BatchesPage} />
         {isAdmin && <Route path="/manage-unreconciled" component={UnreconciledTransactionsPage} />}
