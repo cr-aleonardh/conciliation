@@ -2,9 +2,11 @@
 """
 Suggestion Matching Script
 Finds potential matches between bank transactions and orders using:
-1. Reference match + amount match (<=0.99 diff) + date match (bank 2 days before to 3 days after order)
-2. Fuzzy name match (>70%) + amount match (<=0.99 diff) + date match (bank 2 days before to 3 days after order)
-3. No reference on bank + name match (>70%) + amount match (<=0.99 diff) + date match
+1. Reference match + amount match (<=0.10 diff) + date match (bank 2 days before to 3 days after order)
+2. Fuzzy name match (>70%) + amount match (<=0.10 diff) + date match (bank 2 days before to 3 days after order)
+3. No reference on bank + name match (>70%) + amount match (<=0.10 diff) + date match
+
+IMPORTANT: Orders with remitec_status = 'C' (canceled) are NEVER suggested for matching.
 """
 
 import os
@@ -36,7 +38,7 @@ def parse_date(date_val):
             return None
     return None
 
-def check_amount_match(bank_amount, order_amount, threshold=0.99):
+def check_amount_match(bank_amount, order_amount, threshold=0.10):
     """Check if amounts match within threshold"""
     try:
         diff = abs(float(bank_amount) - float(order_amount))
@@ -99,6 +101,7 @@ def run_suggestions():
                    amount_total_fee, order_bank_reference
             FROM orders 
             WHERE reconciliation_status = 'unmatched'
+              AND (remitec_status IS NULL OR remitec_status != 'C')
         """)
         orders = cur.fetchall()
         
