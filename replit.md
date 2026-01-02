@@ -10,6 +10,30 @@ Key capabilities:
 - Smart matching engine with automated suggestions
 - Match quality indicators (reference match, name similarity, date/amount differences)
 - Reconciliation status tracking and history
+- **Paid Orders Reconciliation** (Admin only): Match bank transactions with already paid/completed orders (remitec_status P or C)
+
+## Application Views
+
+### Landing Page (/)
+Simple navigation hub that shows available workspaces based on user role.
+
+### Reconciliation Cockpit (/reconciliation)
+Main view for matching bank transactions with holding orders (remitec_status H).
+
+### Paid Orders Reconciliation (/paid-orders-reconciliation)
+Admin-only view for matching bank transactions with paid/completed orders in Remitec. 
+- Uses orders with remitec_status 'P' (Paid) or 'C' (Completed) that aren't reconciled
+- No threshold restrictions on matching
+- Same suggestion and matching functionality as the main cockpit
+
+### Dashboard (/dashboard)
+Overview of reconciliation statistics and quick actions.
+
+### Other Views
+- `/reconciled` - View reconciled transactions
+- `/all-transactions` - View all bank transactions
+- `/batches` - Manage reconciliation batches
+- `/manage-unreconciled` - Admin view for managing unreconciled transactions
 
 ## User Preferences
 
