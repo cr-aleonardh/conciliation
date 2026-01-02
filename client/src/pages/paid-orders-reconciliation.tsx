@@ -14,6 +14,7 @@ export interface BankTransaction {
   status: 'unmatched' | 'matched' | 'suggested';
   reconciliationStatus?: string;
   orderId?: number;
+  rawDescription?: string;
 }
 
 export interface Remittance {
@@ -364,6 +365,13 @@ const TransactionRow = ({
   matchStats?: { rValue: string, nValue: string, dValue: string, aValue: string }
 }) => {
   const isMatched = data.status === 'matched';
+  const [isExpanded, setIsExpanded] = useState(false);
+  const hasRawDescription = data.rawDescription && data.rawDescription.trim() !== '';
+  
+  const handleExpandClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsExpanded(!isExpanded);
+  };
   
   return (
     <motion.div
@@ -372,35 +380,60 @@ const TransactionRow = ({
       animate={{ opacity: isMatched ? 0.5 : 1, x: 0 }}
       exit={{ opacity: 0, x: -50, height: 0, marginBottom: 0 }}
       onClick={!isMatched ? onClick : undefined}
-      style={{ height: `${ROW_HEIGHT}px`, marginBottom: `${GAP}px` }}
+      style={{ height: isExpanded ? 'auto' : `${ROW_HEIGHT}px`, minHeight: `${ROW_HEIGHT}px`, marginBottom: `${GAP}px` }}
       className={cn(
-        "group relative flex items-center justify-between p-3 rounded-md border transition-all duration-200 select-none",
+        "group relative flex flex-col p-3 rounded-md border transition-all duration-200 select-none",
         isMatched 
           ? "bg-muted/20 border-transparent cursor-default" 
           : "cursor-pointer hover:bg-muted/50 bg-card border-border/40 hover:border-border",
         isSelected && !isMatched && "bg-bank/10 border-bank shadow-[0_0_15px_-3px_var(--color-bank)] z-10 translate-x-2"
       )}
     >
-      <div className="flex flex-col gap-1">
-        <div className="flex items-center gap-2 flex-wrap">
-          {isMatched && <CheckCircle2 className="w-3 h-3 text-match" />}
-          <span className={cn("text-xs font-mono", isMatched ? "text-muted-foreground/50" : "text-muted-foreground")}>{data.date}</span>
-          <Badge variant="secondary" className={cn("text-[11px] h-5 px-1.5 font-mono font-bold border", 
-            isMatched 
-              ? "bg-blue-50/50 text-blue-700/50 border-blue-200/50 dark:bg-blue-900/10 dark:text-blue-400/50 dark:border-blue-800/50" 
-              : "bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800"
-          )}>
-            {data.reference}
-          </Badge>
-          {matchStats && <MatchStatsDisplay stats={matchStats} />}
+      <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-1 flex-1">
+          <div className="flex items-center gap-2 flex-wrap">
+            {hasRawDescription && (
+              <button
+                onClick={handleExpandClick}
+                className="p-0.5 hover:bg-muted rounded transition-colors"
+                data-testid={`button-expand-description-${data.id}`}
+                title="Show original description"
+              >
+                {isExpanded ? (
+                  <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />
+                ) : (
+                  <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />
+                )}
+              </button>
+            )}
+            {isMatched && <CheckCircle2 className="w-3 h-3 text-match" />}
+            <span className={cn("text-xs font-mono", isMatched ? "text-muted-foreground/50" : "text-muted-foreground")}>{data.date}</span>
+            <Badge variant="secondary" className={cn("text-[11px] h-5 px-1.5 font-mono font-bold border", 
+              isMatched 
+                ? "bg-blue-50/50 text-blue-700/50 border-blue-200/50 dark:bg-blue-900/10 dark:text-blue-400/50 dark:border-blue-800/50" 
+                : "bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800"
+            )}>
+              {data.reference}
+            </Badge>
+            {matchStats && <MatchStatsDisplay stats={matchStats} />}
+          </div>
+          <ClickToCopy text={data.payee}><span className={cn("text-base font-medium transition-colors", isMatched ? "text-muted-foreground line-through decoration-muted-foreground/30" : "text-foreground group-hover:text-primary")}>
+            {data.payee}
+          </span></ClickToCopy>
         </div>
-        <ClickToCopy text={data.payee}><span className={cn("text-base font-medium transition-colors", isMatched ? "text-muted-foreground line-through decoration-muted-foreground/30" : "text-foreground group-hover:text-primary")}>
-          {data.payee}
-        </span></ClickToCopy>
+        <div className="text-right">
+          <AmountDisplay amount={data.amount} type="bank" dimmed={isMatched} />
+        </div>
       </div>
-      <div className="text-right">
-        <AmountDisplay amount={data.amount} type="bank" dimmed={isMatched} />
-      </div>
+      
+      {isExpanded && hasRawDescription && (
+        <div className="mt-2 pt-2 border-t border-border/40">
+          <div className="text-xs text-muted-foreground mb-1">Original Description:</div>
+          <div className="text-sm bg-muted/30 rounded px-2 py-1.5 font-mono text-foreground/80 break-all" data-testid={`text-raw-description-${data.id}`}>
+            {data.rawDescription}
+          </div>
+        </div>
+      )}
       
       {isSelected && !isMatched && (
         <div className="absolute -right-1 top-1/2 -translate-y-1/2 w-1 h-8 bg-bank rounded-l-full shadow-[0_0_10px_var(--color-bank)]" />
@@ -584,7 +617,8 @@ export default function PaidOrdersReconciliationPage({ isAdmin = false }: PaidOr
             status: t.reconciliationStatus === 'unmatched' ? 'unmatched' : 
                    t.reconciliationStatus === 'suggested_match' ? 'suggested' : 'matched',
             reconciliationStatus: t.reconciliationStatus,
-            orderId: t.orderId || undefined
+            orderId: t.orderId || undefined,
+            rawDescription: t.rawDescription || undefined
           }));
           setBankTransactions(transformedBank);
         }
@@ -676,7 +710,8 @@ export default function PaidOrdersReconciliationPage({ isAdmin = false }: PaidOr
             status: t.reconciliationStatus === 'unmatched' ? 'unmatched' : 
                    t.reconciliationStatus === 'suggested_match' ? 'suggested' : 'matched',
             reconciliationStatus: t.reconciliationStatus,
-            orderId: t.orderId || undefined
+            orderId: t.orderId || undefined,
+            rawDescription: t.rawDescription || undefined
           }));
           setBankTransactions(transformedTransactions);
         }
@@ -748,7 +783,8 @@ export default function PaidOrdersReconciliationPage({ isAdmin = false }: PaidOr
             status: t.reconciliationStatus === 'unmatched' ? 'unmatched' : 
                    t.reconciliationStatus === 'suggested_match' ? 'suggested' : 'matched',
             reconciliationStatus: t.reconciliationStatus,
-            orderId: t.orderId || undefined
+            orderId: t.orderId || undefined,
+            rawDescription: t.rawDescription || undefined
           }));
           setBankTransactions(transformedBank);
         }
