@@ -6,6 +6,7 @@ export interface BankTransaction {
   transaction_date: string; // ISO Date string
   credit_amount: number;
   description: string;
+  raw_description?: string;
   extracted_reference?: string;
   match_reference_flag: boolean;
   match_name_score: number; // 0-100
