@@ -72,7 +72,32 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteBankTransaction(hash: string): Promise<void> {
-    await db.delete(bankTransactions).where(eq(bankTransactions.transactionHash, hash));
+    await db.transaction(async (tx: any) => {
+      const transaction = await tx.select().from(bankTransactions).where(eq(bankTransactions.transactionHash, hash));
+      
+      if (transaction[0] && transaction[0].orderId && transaction[0].reconciliationStatus === 'reconciled') {
+        const orderId = transaction[0].orderId;
+        const order = await tx.select().from(orders).where(eq(orders.orderId, orderId));
+        
+        if (order[0]) {
+          const currentTransactionIds = order[0].transactionIds || [];
+          const updatedTransactionIds = currentTransactionIds.filter((id: string) => id !== hash);
+          
+          await tx
+            .update(orders)
+            .set({ 
+              transactionIds: updatedTransactionIds.length > 0 ? updatedTransactionIds : null,
+              reconciliationStatus: 'unmatched',
+              batchId: null,
+              reconciledAt: null,
+              reconciledBy: null
+            })
+            .where(eq(orders.orderId, orderId));
+        }
+      }
+      
+      await tx.delete(bankTransactions).where(eq(bankTransactions.transactionHash, hash));
+    });
   }
 
   // Orders
