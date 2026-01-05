@@ -16,7 +16,8 @@ const USERS = [
   { username: "viewer", password: "bPqQMX2aJrAzpf", isAdmin: false, role: "viewer" },
   { username: "enrique", password: "q2ERvveHjcZ1", isAdmin: false, role: "operator" },
   { username: "miguel", password: "U1MswQzLJYkQ", isAdmin: false, role: "operator" },
-  { username: "antonio", password: "AmLnGz1LWMtq", isAdmin: false, role: "operator" }
+  { username: "antonio", password: "AmLnGz1LWMtq", isAdmin: false, role: "operator" },
+  { username: "maria_laura", password: "dg6JJxd57azFp", isAdmin: false, role: "operator" }
 ];
 
 function requireAuth(req: Request, res: Response, next: NextFunction) {
