@@ -57,7 +57,7 @@ export default function LandingPage({ isAdmin }: LandingPageProps) {
               <GitCompare className="w-7 h-7 text-white" />
             </div>
             <h1 className="text-4xl font-bold text-slate-100" data-testid="text-landing-title">
-              Reconciliation System 2.0
+              Reconciliation System
             </h1>
           </div>
           <p className="text-slate-400 text-lg">
