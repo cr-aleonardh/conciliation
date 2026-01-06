@@ -44,10 +44,11 @@ def format_date_for_api(date: datetime) -> str:
     return date.strftime("%Y.%m.%d")
 
 
-def parse_numeric_value(val) -> float | None:
+def parse_numeric_value(val):
     """Parse numeric value from various formats (mirrors TypeScript logic)."""
     if isinstance(val, (int, float)):
-        if pd.isna(val) or not pd.np.isfinite(val) if hasattr(pd, 'np') else (val != val or val == float('inf') or val == float('-inf')):
+        import math
+        if pd.isna(val) or not math.isfinite(val):
             return None
         return float(val)
     
