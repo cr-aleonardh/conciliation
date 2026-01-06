@@ -144,7 +144,7 @@ def fetch_orders_from_api(api_user: str, api_password: str, custom_start_date: s
     while current_page <= total_pages:
         url = f"{base_url}?startDate={start_date}&endDate={end_date}&pageNumber={current_page}"
         
-        print(f"Fetching page {current_page}...", file=sys.stderr)
+        print(f"Fetching page {current_page} of {total_pages}...", file=sys.stderr)
         
         response = requests.get(
             url,
@@ -157,10 +157,17 @@ def fetch_orders_from_api(api_user: str, api_password: str, custom_start_date: s
             raise Exception(f"API returned status {response.status_code}: {response.text}")
         
         data = response.json()
-        total_pages = data["paging"]["totalPages"]
-        total_fetched += len(data["data"])
         
-        all_orders.extend(data["data"])
+        paging = data.get("paging", {})
+        api_total_pages = paging.get("totalPages", 1)
+        
+        if current_page == 1:
+            total_pages = api_total_pages
+            print(f"API reports {total_pages} total pages, {paging.get('totalItems', 0)} total items", file=sys.stderr)
+        
+        page_data = data.get("data", [])
+        total_fetched += len(page_data)
+        all_orders.extend(page_data)
         
         current_page += 1
         
@@ -230,7 +237,7 @@ def transform_orders(raw_orders: list, status_filter: str = None) -> pd.DataFram
 
 
 def bulk_upsert_orders(engine, df: pd.DataFrame, clean_old_orders: bool = False) -> tuple[int, int]:
-    """Perform bulk upsert of orders into PostgreSQL."""
+    """Perform bulk upsert of orders into PostgreSQL using ON CONFLICT."""
     if df.empty:
         return 0, 0
     
@@ -245,13 +252,33 @@ def bulk_upsert_orders(engine, df: pd.DataFrame, clean_old_orders: bool = False)
         
         records = df.to_dict('records')
         
+        new_records = [r for r in records if r['order_id'] not in existing_ids]
+        existing_records = [r for r in records if r['order_id'] in existing_ids]
+        
         inserted = 0
         updated = 0
         
-        for record in records:
-            order_id = record['order_id']
-            
-            if order_id in existing_ids:
+        if new_records:
+            for record in new_records:
+                insert_sql = text("""
+                    INSERT INTO orders (
+                        order_id, order_bank_reference, amount, fee, amount_total_fee,
+                        order_timestamp, order_date, customer_name, remitec_status,
+                        match_reference_flag, match_name_score, reconciliation_status,
+                        diff_days, diff_amount, transaction_ids, batch_id, fetched_at
+                    ) VALUES (
+                        :order_id, :order_bank_reference, :amount, :fee, :amount_total_fee,
+                        :order_timestamp, :order_date, :customer_name, :remitec_status,
+                        :match_reference_flag, :match_name_score, :reconciliation_status,
+                        :diff_days, :diff_amount, :transaction_ids, :batch_id, NOW()
+                    )
+                    ON CONFLICT (order_id) DO NOTHING
+                """)
+                conn.execute(insert_sql, record)
+            inserted = len(new_records)
+        
+        if existing_records:
+            for record in existing_records:
                 update_sql = text("""
                     UPDATE orders SET
                         order_bank_reference = :order_bank_reference,
@@ -269,22 +296,6 @@ def bulk_upsert_orders(engine, df: pd.DataFrame, clean_old_orders: bool = False)
                 result = conn.execute(update_sql, record)
                 if result.rowcount > 0:
                     updated += 1
-            else:
-                insert_sql = text("""
-                    INSERT INTO orders (
-                        order_id, order_bank_reference, amount, fee, amount_total_fee,
-                        order_timestamp, order_date, customer_name, remitec_status,
-                        match_reference_flag, match_name_score, reconciliation_status,
-                        diff_days, diff_amount, transaction_ids, batch_id, fetched_at
-                    ) VALUES (
-                        :order_id, :order_bank_reference, :amount, :fee, :amount_total_fee,
-                        :order_timestamp, :order_date, :customer_name, :remitec_status,
-                        :match_reference_flag, :match_name_score, :reconciliation_status,
-                        :diff_days, :diff_amount, :transaction_ids, :batch_id, NOW()
-                    )
-                """)
-                conn.execute(insert_sql, record)
-                inserted += 1
         
         conn.commit()
     
