@@ -20,7 +20,7 @@ import re
 import unicodedata
 import requests
 import pandas as pd
-from datetime import datetime
+from datetime import datetime, timedelta
 from sqlalchemy import create_engine, text
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
@@ -115,13 +115,15 @@ def fetch_orders_from_api(api_user: str, api_password: str, custom_start_date: s
     
     today = datetime.now()
     
+    default_start = today - timedelta(days=3)
+    
     if custom_start_date and custom_start_date != "null":
         try:
             start_dt = datetime.strptime(custom_start_date, "%Y-%m-%d")
         except ValueError:
-            start_dt = datetime(2025, 12, 13)
+            start_dt = default_start
     else:
-        start_dt = datetime(2025, 12, 13)
+        start_dt = default_start
     
     if custom_end_date and custom_end_date != "null":
         try:
