@@ -25,8 +25,19 @@ import {
   X,
   Settings,
   Layers,
-  Undo2
+  Undo2,
+  Trash2
 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Link } from "wouter";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -52,6 +63,8 @@ export default function AllTransactionsPage({ isViewer = false, isAdmin = false 
   const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
   const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
   const [unconciliatingHash, setUnconciliatingHash] = useState<string | null>(null);
+  const [deleteTransaction, setDeleteTransaction] = useState<BankTransaction | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const { toast } = useToast();
 
   const { data: transactions = [], isLoading, refetch } = useQuery<BankTransaction[]>({
@@ -253,6 +266,42 @@ export default function AllTransactionsPage({ isViewer = false, isAdmin = false 
       });
     } finally {
       setUnconciliatingHash(null);
+    }
+  };
+
+  const handleDeleteTransaction = async () => {
+    if (!deleteTransaction) return;
+    
+    setIsDeleting(true);
+    
+    try {
+      const response = await fetch(`/api/bank-transactions/${deleteTransaction.transactionHash}`, {
+        method: "DELETE"
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Failed to delete transaction");
+      }
+
+      const wasReconciled = deleteTransaction.reconciliationStatus === "reconciled";
+      toast({
+        title: "Success",
+        description: wasReconciled 
+          ? "Transaction deleted and linked order set to unreconciled"
+          : "Transaction deleted successfully"
+      });
+      
+      refetch();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete transaction",
+        variant: "destructive"
+      });
+    } finally {
+      setIsDeleting(false);
+      setDeleteTransaction(null);
     }
   };
 
@@ -617,21 +666,30 @@ export default function AllTransactionsPage({ isViewer = false, isAdmin = false 
                         </TableCell>
                         {isAdmin && (
                           <TableCell>
-                            {transaction.reconciliationStatus === "reconciled" && transaction.orderId ? (
+                            <div className="flex items-center gap-1">
+                              {transaction.reconciliationStatus === "reconciled" && transaction.orderId && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleUnconciliate(transaction)}
+                                  disabled={unconciliatingHash === transaction.transactionHash}
+                                  className="h-7 px-2 text-xs text-amber-400 hover:text-amber-300 hover:bg-amber-900/30"
+                                  data-testid={`button-undo-${transaction.transactionHash}`}
+                                >
+                                  <Undo2 className="w-3 h-3 mr-1" />
+                                  {unconciliatingHash === transaction.transactionHash ? "..." : "Undo"}
+                                </Button>
+                              )}
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => handleUnconciliate(transaction)}
-                                disabled={unconciliatingHash === transaction.transactionHash}
-                                className="h-7 px-2 text-xs text-amber-400 hover:text-amber-300 hover:bg-amber-900/30"
-                                data-testid={`button-undo-${transaction.transactionHash}`}
+                                onClick={() => setDeleteTransaction(transaction)}
+                                className="h-7 w-7 p-0 text-red-400 hover:text-red-300 hover:bg-red-900/30"
+                                data-testid={`button-delete-${transaction.transactionHash}`}
                               >
-                                <Undo2 className="w-3 h-3 mr-1" />
-                                {unconciliatingHash === transaction.transactionHash ? "..." : "Undo"}
+                                <Trash2 className="w-3.5 h-3.5" />
                               </Button>
-                            ) : (
-                              <span className="text-slate-600">-</span>
-                            )}
+                            </div>
                           </TableCell>
                         )}
                       </TableRow>
@@ -643,6 +701,42 @@ export default function AllTransactionsPage({ isViewer = false, isAdmin = false 
           </CardContent>
         </Card>
       </main>
+
+      <AlertDialog open={!!deleteTransaction} onOpenChange={(open) => !open && setDeleteTransaction(null)}>
+        <AlertDialogContent className="bg-slate-900 border-slate-700">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-slate-100">Delete Transaction</AlertDialogTitle>
+            <AlertDialogDescription className="text-slate-400">
+              {deleteTransaction?.reconciliationStatus === "reconciled" ? (
+                <>
+                  This transaction is <span className="text-amber-400 font-medium">reconciled</span> with Order #{deleteTransaction?.orderId}. 
+                  Deleting it will also set the linked order back to <span className="text-amber-400 font-medium">unreconciled</span>.
+                </>
+              ) : (
+                "Are you sure you want to delete this transaction? This action cannot be undone."
+              )}
+              <div className="mt-3 p-3 bg-slate-800 rounded-lg text-sm">
+                <div><span className="text-slate-500">Date:</span> <span className="text-slate-200">{deleteTransaction && formatDate(deleteTransaction.transactionDate)}</span></div>
+                <div><span className="text-slate-500">Payer:</span> <span className="text-slate-200">{deleteTransaction?.payerSender}</span></div>
+                <div><span className="text-slate-500">Amount:</span> <span className="text-slate-200">{deleteTransaction && formatAmount(deleteTransaction.creditAmount)}</span></div>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="bg-slate-800 border-slate-600 text-slate-300 hover:bg-slate-700">
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteTransaction}
+              disabled={isDeleting}
+              className="bg-red-600 hover:bg-red-700 text-white"
+              data-testid="button-confirm-delete"
+            >
+              {isDeleting ? "Deleting..." : "Delete Transaction"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

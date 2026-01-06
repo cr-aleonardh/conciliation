@@ -70,16 +70,16 @@ def parse_date(date_value):
     """
     Parse date from various formats.
     Handles dd.mm.yyyy, dd/mm/yyyy, yyyy-mm-dd, ISO datetime strings, etc.
-    Returns ISO format string (YYYY-MM-DD).
+    Returns timestamp string (YYYY-MM-DD 00:00:00) to avoid timezone interpretation.
     """
     if pd.isna(date_value) or date_value is None:
         return None
     
     if isinstance(date_value, datetime):
-        return date_value.strftime('%Y-%m-%d')
+        return date_value.strftime('%Y-%m-%d 00:00:00')
     
     if isinstance(date_value, pd.Timestamp):
-        return date_value.strftime('%Y-%m-%d')
+        return date_value.strftime('%Y-%m-%d 00:00:00')
     
     date_str = str(date_value).strip()
     
@@ -87,7 +87,7 @@ def parse_date(date_value):
     try:
         parsed = pd.to_datetime(date_str, errors='coerce')
         if pd.notna(parsed):
-            return parsed.strftime('%Y-%m-%d')
+            return parsed.strftime('%Y-%m-%d 00:00:00')
     except Exception:
         pass
     
@@ -109,7 +109,7 @@ def parse_date(date_value):
     for fmt in date_formats:
         try:
             parsed = datetime.strptime(date_str, fmt)
-            return parsed.strftime('%Y-%m-%d')
+            return parsed.strftime('%Y-%m-%d 00:00:00')
         except ValueError:
             continue
     
