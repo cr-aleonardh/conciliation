@@ -6,7 +6,6 @@ import { z } from "zod";
 import multer from "multer";
 import { processUploadedFile } from "./fileProcessor";
 import { spawn } from "child_process";
-import { mapAndValidateOrders } from "./orderMapper";
 
 const upload = multer({ storage: multer.memoryStorage() });
 
@@ -405,10 +404,10 @@ export async function registerRoutes(
     }
   });
 
-  // Fetch Orders from Curiara API - calls Python script, then uses storage layer
+  // Fetch Orders from Curiara API - Python script handles ETL and database operations
   app.post("/api/fetch-orders", async (req, res) => {
     try {
-      console.log("Starting Python script to fetch orders...");
+      console.log("Starting Python script to fetch orders (optimized with Pandas/SQLAlchemy)...");
       
       const pythonProcess = spawn("python3", ["scripts/fetch_orders.py"], {
         env: process.env,
@@ -445,37 +444,8 @@ export async function registerRoutes(
         
         try {
           const pythonResult = JSON.parse(stdout);
-          
-          if (!pythonResult.success) {
-            return res.status(500).json(pythonResult);
-          }
-          
-          if (!Array.isArray(pythonResult.orders)) {
-            return res.status(500).json({
-              success: false,
-              message: "Invalid response from fetch script: orders is not an array"
-            });
-          }
-          
-          const { orders: ordersToUpsert, errors: validationErrors } = mapAndValidateOrders(pythonResult.orders);
-          
-          if (validationErrors.length > 0) {
-            console.warn(`Validation issues with ${validationErrors.length} orders:`, validationErrors.slice(0, 5));
-          }
-          
-          const dbResult = await storage.upsertOrders(ordersToUpsert);
-          
-          console.log(`Fetch complete: ${pythonResult.message}, inserted: ${dbResult.inserted}, updated: ${dbResult.updated}`);
-          
-          res.json({
-            success: true,
-            message: pythonResult.message,
-            inserted: dbResult.inserted,
-            updated: dbResult.updated,
-            totalPages: pythonResult.totalPages,
-            dateRange: pythonResult.dateRange
-          });
-          
+          console.log(`Fetch complete: ${pythonResult.message}, inserted: ${pythonResult.inserted}, updated: ${pythonResult.updated}`);
+          res.json(pythonResult);
         } catch (parseError: any) {
           console.error("Failed to process Python output:", parseError.message);
           console.error("stdout:", stdout);
@@ -503,14 +473,20 @@ export async function registerRoutes(
     }
   });
 
-  // Fetch ALL Orders from Curiara API (admin only, with status filter)
+  // Fetch ALL Orders from Curiara API (admin only, with status filter) - Python script handles ETL and database operations
   app.post("/api/fetch-orders-all", async (req, res) => {
     try {
       const { startDate, endDate, statusFilter, cleanOldOrders } = req.body || {};
-      console.log(`Starting Python script to fetch ALL orders. startDate: ${startDate || 'default'}, endDate: ${endDate || 'default'}, statusFilter: ${statusFilter || 'none'}, cleanOldOrders: ${cleanOldOrders || false}...`);
+      console.log(`Starting Python script to fetch ALL orders (optimized). startDate: ${startDate || 'default'}, endDate: ${endDate || 'default'}, statusFilter: ${statusFilter || 'none'}, cleanOldOrders: ${cleanOldOrders || false}...`);
       
-      // Pass dates as command-line arguments to Python script
-      const args = ["scripts/fetch_orders.py", startDate || "null", endDate || "null"];
+      // Pass all parameters as command-line arguments to Python script
+      const args = [
+        "scripts/fetch_orders.py", 
+        startDate || "null", 
+        endDate || "null",
+        statusFilter || "null",
+        cleanOldOrders ? "true" : "false"
+      ];
       
       const pythonProcess = spawn("python3", args, {
         env: process.env,
@@ -547,53 +523,8 @@ export async function registerRoutes(
         
         try {
           const pythonResult = JSON.parse(stdout);
-          
-          if (!pythonResult.success) {
-            return res.status(500).json(pythonResult);
-          }
-          
-          if (!Array.isArray(pythonResult.orders)) {
-            return res.status(500).json({
-              success: false,
-              message: "Invalid response from fetch script: orders is not an array"
-            });
-          }
-          
-          // Filter orders by status if statusFilter is provided (P = Paid, H = Holding, D = Dispatch)
-          // If cleanOldOrders is true, only process orders with status 'H' (Holding) - skip paid orders
-          let ordersToProcess = pythonResult.orders;
-          if (cleanOldOrders) {
-            // For clean old orders, only get Holding orders to check if they became Canceled
-            const beforeCount = ordersToProcess.length;
-            ordersToProcess = ordersToProcess.filter((order: any) => order.status === 'H' || order.status === 'C');
-            console.log(`Clean old orders filter (H or C only): ${beforeCount} -> ${ordersToProcess.length} orders`);
-          } else if (statusFilter) {
-            const beforeCount = ordersToProcess.length;
-            ordersToProcess = ordersToProcess.filter((order: any) => order.status === statusFilter);
-            console.log(`Status filter "${statusFilter}": ${beforeCount} -> ${ordersToProcess.length} orders`);
-          }
-          
-          // Use skipStatusFilter: true to include all orders regardless of status
-          const { orders: ordersToUpsert, errors: validationErrors } = mapAndValidateOrders(ordersToProcess, { skipStatusFilter: true });
-          
-          if (validationErrors.length > 0) {
-            console.warn(`Validation issues with ${validationErrors.length} orders:`, validationErrors.slice(0, 5));
-          }
-          
-          const dbResult = await storage.upsertOrders(ordersToUpsert);
-          
-          const statusLabel = cleanOldOrders ? 'Clean' : statusFilter === 'P' ? 'Paid' : statusFilter === 'H' ? 'Holding' : statusFilter === 'D' ? 'Dispatch' : 'All';
-          console.log(`Fetch complete (${statusLabel}): ${pythonResult.message}, inserted: ${dbResult.inserted}, updated: ${dbResult.updated}`);
-          
-          res.json({
-            success: true,
-            message: `Fetched orders (${statusLabel}). Inserted: ${dbResult.inserted}, Updated: ${dbResult.updated}`,
-            inserted: dbResult.inserted,
-            updated: dbResult.updated,
-            totalPages: pythonResult.totalPages,
-            dateRange: pythonResult.dateRange
-          });
-          
+          console.log(`Fetch complete: ${pythonResult.message}, inserted: ${pythonResult.inserted}, updated: ${pythonResult.updated}`);
+          res.json(pythonResult);
         } catch (parseError: any) {
           console.error("Failed to process Python output:", parseError.message);
           console.error("stdout:", stdout);
